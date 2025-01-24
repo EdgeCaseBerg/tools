@@ -1,6 +1,6 @@
 //! # Nav Update
-//! 
-//! `nav-update` is a quick and dirty program to 
+//!
+//! `nav-update` is a quick and dirty program to
 //! update my site navigation without messing with
 //! existing indentation or the like. It takes in
 //! two arguments, the first being the file to use
@@ -8,8 +8,8 @@
 //! data should be, and the second beind the path or
 //! file to update according to the template.
 
-use std::fs;
 use std::error::Error;
+use std::fs;
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let template_file = fs::read_to_string(&config.template_file)?;
@@ -34,13 +34,9 @@ fn header_lines_from_template(template: &str) -> Vec<&str> {
         .collect()
 }
 
-fn update_files_in_dir(config: &Config, template_header_lines: Vec<&str>) {
+fn update_files_in_dir(config: &Config, template_header_lines: Vec<&str>) {}
 
-}
-
-fn update_file_in_dir(config: &Config, template_header_lines: Vec<&str>) {
-
-}
+fn update_file_in_dir(config: &Config, template_header_lines: Vec<&str>) {}
 
 pub struct Config {
     pub template_file: String,
@@ -48,9 +44,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn build(
-        mut args: impl Iterator<Item = String>
-    ) -> Result<Config, &'static str> {
+    pub fn build(mut args: impl Iterator<Item = String>) -> Result<Config, &'static str> {
         if let None = args.next() {
             return Err("Didn't get the program name somehow.");
         };
@@ -73,7 +67,7 @@ impl Config {
     pub fn path_is_directory(&self) -> bool {
         match fs::metadata(&self.path_to_update) {
             Ok(metadata) => metadata.is_dir(),
-            Err(_) => false    
+            Err(_) => false,
         }
     }
 }
@@ -116,5 +110,4 @@ mod tests {
         let lines = header_lines_from_template(contents);
         assert_eq!(lines, vec!["<nav>", "<li>hi</li>", "</nav>"]);
     }
-
 }
