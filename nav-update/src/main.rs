@@ -8,8 +8,8 @@ fn main() {
         process::exit(1);
     });
 
-    // if let Err(e) = crate::run(config) {
-    //     eprintln!("Application error: {e}");
-    //     process::exit(1);
-    // }
+    if let Err(e) = nav_update::run(config) {
+        eprintln!("Application error: {e}");
+        process::exit(1);
+    }
 }

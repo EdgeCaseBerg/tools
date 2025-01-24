@@ -12,11 +12,34 @@ use std::fs;
 use std::error::Error;
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
-    let _ = fs::read_to_string(config.template_file)?;
+    let template_file = fs::read_to_string(&config.template_file)?;
+    let header_data = header_lines_from_template(&template_file);
 
-    println!("{:?}", config.path_to_update);
-    
+    if config.path_is_directory() {
+        update_files_in_dir(&config, header_data);
+    } else {
+        update_file_in_dir(&config, header_data);
+    }
+
     Ok(())
+}
+
+fn header_lines_from_template(template: &str) -> Vec<&str> {
+    // if we wanted to be fancy we could make this return a &[str]
+    template
+        .lines()
+        .skip_while(|line| !line.contains("<header>"))
+        .take_while(|line| !line.contains("</header>"))
+        .skip(1)
+        .collect()
+}
+
+fn update_files_in_dir(config: &Config, template_header_lines: Vec<&str>) {
+
+}
+
+fn update_file_in_dir(config: &Config, template_header_lines: Vec<&str>) {
+
 }
 
 pub struct Config {
@@ -45,6 +68,13 @@ impl Config {
             template_file,
             path_to_update,
         })
+    }
+
+    pub fn path_is_directory(&self) -> bool {
+        match fs::metadata(&self.path_to_update) {
+            Ok(metadata) => metadata.is_dir(),
+            Err(_) => false    
+        }
     }
 }
 
@@ -78,6 +108,13 @@ mod tests {
         let args = ["programname", "templatefile", "path"];
         let built = Config::build(args.into_iter().map(|s| String::from(s)));
         assert!(built.is_ok());
+    }
+
+    #[test]
+    fn reads_lines_after_headers() {
+        let contents = "<header>\n<nav>\n<li>hi</li>\n</nav>\n</header>";
+        let lines = header_lines_from_template(contents);
+        assert_eq!(lines, vec!["<nav>", "<li>hi</li>", "</nav>"]);
     }
 
 }
