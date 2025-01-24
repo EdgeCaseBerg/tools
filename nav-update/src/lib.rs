@@ -16,11 +16,11 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let header_data = header_lines_from_template(&template_file);
 
     if config.path_is_directory() {
-        update_files_in_dir(&config, header_data);
+        update_files_in_dir(&config, header_data)?;
     } else {
-        update_file_in_dir(&config, header_data);
+        let new_contents = get_updated_file_contents(&config.path_to_update, header_data)?;
+        fs::write(&config.path_to_update, new_contents)?;
     }
-
     Ok(())
 }
 
@@ -34,9 +34,46 @@ fn header_lines_from_template(template: &str) -> Vec<&str> {
         .collect()
 }
 
-fn update_files_in_dir(config: &Config, template_header_lines: Vec<&str>) {}
+fn update_files_in_dir(
+    config: &Config,
+    template_header_lines: Vec<&str>,
+) -> Result<(), Box<dyn Error>> {
+    let _ = config;
+    let _ = template_header_lines;
+    Ok(())
+}
 
-fn update_file_in_dir(config: &Config, template_header_lines: Vec<&str>) {}
+fn get_updated_file_contents(
+    file_path: &str,
+    template_header_lines: Vec<&str>,
+) -> Result<String, Box<dyn Error>> {
+    let contents_to_update = fs::read_to_string(file_path)?;
+    let mut iter = contents_to_update.lines();
+    let mut new_contents = String::new();
+    while let Some(line) = iter.next() {
+        if line.contains("<header>") {
+            new_contents.push_str(line);
+            new_contents.push_str("\n");
+
+            for templated_line in template_header_lines.iter() {
+                new_contents.push_str(templated_line);
+                new_contents.push_str("\n");
+            }
+            while let Some(line) = iter.next() {
+                if line.contains("</header>") {
+                    new_contents.push_str(line);
+                    break;
+                } else {
+                    continue;
+                }
+            }
+        } else {
+            new_contents.push_str(line);
+        }
+        new_contents.push_str("\n");
+    }
+    Ok(new_contents)
+}
 
 pub struct Config {
     pub template_file: String,
