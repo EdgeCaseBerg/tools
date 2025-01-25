@@ -40,7 +40,7 @@ fn update_files_in_dir(
     template_header_lines: &Vec<&str>,
 ) -> Result<(), Box<dyn Error>> {
     visit_files(Path::new(&config.path_to_update), &|dir_entry: &fs::DirEntry| {
-        if dir_entry.path().extension().unwrap().to_str() != Some("html") { 
+        if dir_entry.path().extension().and_then(|e| e.to_str()) != Some("html") { 
             return Ok(());
         }
 
