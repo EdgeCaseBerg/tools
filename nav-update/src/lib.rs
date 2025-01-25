@@ -45,7 +45,7 @@ fn update_files_in_dir(
         }
 
         let new_contents = get_updated_file_contents(&dir_entry.path().to_str().unwrap(), template_header_lines)?;
-        fs::write(&config.path_to_update, new_contents)?;
+        fs::write(&dir_entry.path(), new_contents)?;
         Ok(())
     })?;
     Ok(())
