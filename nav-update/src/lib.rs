@@ -38,10 +38,11 @@ fn header_lines_from_template(template: &str) -> Vec<&str> {
 
 fn get_updated_file_contents(
     template_header_lines: &Vec<&str>,
-    contents_to_update: String
+    contents_to_update: String,
 ) -> String {
     let mut iter = contents_to_update.lines();
-    let mut new_contents = String::with_capacity(contents_to_update.len() + template_header_lines.len());
+    let expected_max_length = contents_to_update.len() + template_header_lines.len();
+    let mut new_contents = String::with_capacity(expected_max_length);
     while let Some(line) = iter.next() {
         if line.contains("<header>") {
             new_contents.push_str(line);
@@ -71,23 +72,26 @@ fn update_files_in_dir(
     config: &Config,
     template_header_lines: &Vec<&str>,
 ) -> Result<(), Box<dyn Error>> {
-    visit_files(Path::new(&config.path_to_update), &|dir_entry: &fs::DirEntry| {
-        if dir_entry.path().extension().and_then(|e| e.to_str()) != Some("html") { 
-            return Ok(());
-        }
+    visit_files(
+        Path::new(&config.path_to_update),
+        &|dir_entry: &fs::DirEntry| {
+            if dir_entry.path().extension().and_then(|e| e.to_str()) != Some("html") {
+                return Ok(());
+            }
 
-        let contents_to_update = fs::read_to_string(dir_entry.path())?;
-        let new_contents = get_updated_file_contents(
-            template_header_lines,
-            contents_to_update
-        );
-        fs::write(&dir_entry.path(), new_contents)?;
-        Ok(())
-    })?;
+            let contents_to_update = fs::read_to_string(dir_entry.path())?;
+            let new_contents = get_updated_file_contents(template_header_lines, contents_to_update);
+            fs::write(&dir_entry.path(), new_contents)?;
+            Ok(())
+        },
+    )?;
     Ok(())
 }
 
-fn visit_files(dir: &Path, action: &dyn Fn(&fs::DirEntry) -> Result<(), Box<dyn Error>>) -> Result<(), Box<dyn Error>> {
+fn visit_files(
+    dir: &Path,
+    action: &dyn Fn(&fs::DirEntry) -> Result<(), Box<dyn Error>>,
+) -> Result<(), Box<dyn Error>> {
     if dir.is_dir() {
         for entry in fs::read_dir(dir)? {
             let entry = entry?;
@@ -177,7 +181,7 @@ mod tests {
 
     #[test]
     fn splices_correctly() {
-        let template = vec!["<nav>","<li>hi</li>","</nav>"];
+        let template = vec!["<nav>", "<li>hi</li>", "</nav>"];
         let to_replace_in = "Wont be touched at all\n<header>\n<nav>\n<li>bye</li>\n</nav>\n</header>\nWont be touched";
         let new_contents = get_updated_file_contents(&template, to_replace_in.to_string());
         assert_eq!(
