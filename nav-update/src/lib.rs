@@ -35,37 +35,6 @@ fn header_lines_from_template(template: &str) -> Vec<&str> {
         .collect()
 }
 
-fn update_files_in_dir(
-    config: &Config,
-    template_header_lines: &Vec<&str>,
-) -> Result<(), Box<dyn Error>> {
-    visit_files(Path::new(&config.path_to_update), &|dir_entry: &fs::DirEntry| {
-        if dir_entry.path().extension().and_then(|e| e.to_str()) != Some("html") { 
-            return Ok(());
-        }
-
-        let new_contents = get_updated_file_contents(&dir_entry.path().to_str().unwrap(), template_header_lines)?;
-        fs::write(&dir_entry.path(), new_contents)?;
-        Ok(())
-    })?;
-    Ok(())
-}
-
-fn visit_files(dir: &Path, action: &dyn Fn(&fs::DirEntry) -> Result<(), Box<dyn Error>>) -> Result<(), Box<dyn Error>> {
-    if dir.is_dir() {
-        for entry in fs::read_dir(dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_dir() {
-                visit_files(&path, action)?;
-            } else {
-                action(&entry)?;
-            }
-        }
-    }
-    Ok(())
-}
-
 fn get_updated_file_contents(
     file_path: &str,
     template_header_lines: &Vec<&str>,
@@ -96,6 +65,37 @@ fn get_updated_file_contents(
         new_contents.push_str("\n");
     }
     Ok(new_contents)
+}
+
+fn update_files_in_dir(
+    config: &Config,
+    template_header_lines: &Vec<&str>,
+) -> Result<(), Box<dyn Error>> {
+    visit_files(Path::new(&config.path_to_update), &|dir_entry: &fs::DirEntry| {
+        if dir_entry.path().extension().and_then(|e| e.to_str()) != Some("html") { 
+            return Ok(());
+        }
+
+        let new_contents = get_updated_file_contents(&dir_entry.path().to_str().unwrap(), template_header_lines)?;
+        fs::write(&dir_entry.path(), new_contents)?;
+        Ok(())
+    })?;
+    Ok(())
+}
+
+fn visit_files(dir: &Path, action: &dyn Fn(&fs::DirEntry) -> Result<(), Box<dyn Error>>) -> Result<(), Box<dyn Error>> {
+    if dir.is_dir() {
+        for entry in fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                visit_files(&path, action)?;
+            } else {
+                action(&entry)?;
+            }
+        }
+    }
+    Ok(())
 }
 
 pub struct Config {
