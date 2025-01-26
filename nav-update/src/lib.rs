@@ -19,7 +19,8 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     if config.path_is_directory() {
         update_files_in_dir(&config, &header_data)?;
     } else {
-        let new_contents = get_updated_file_contents(&config.path_to_update, &header_data)?;
+        let contents_to_update = fs::read_to_string(&config.path_to_update)?;
+        let new_contents = get_updated_file_contents(&header_data, contents_to_update)?;
         fs::write(&config.path_to_update, new_contents)?;
     }
     Ok(())
@@ -36,10 +37,9 @@ fn header_lines_from_template(template: &str) -> Vec<&str> {
 }
 
 fn get_updated_file_contents(
-    file_path: &str,
     template_header_lines: &Vec<&str>,
+    contents_to_update: String
 ) -> Result<String, Box<dyn Error>> {
-    let contents_to_update = fs::read_to_string(file_path)?;
     let mut iter = contents_to_update.lines();
     let mut new_contents = String::new();
     while let Some(line) = iter.next() {
@@ -76,7 +76,11 @@ fn update_files_in_dir(
             return Ok(());
         }
 
-        let new_contents = get_updated_file_contents(&dir_entry.path().to_str().unwrap(), template_header_lines)?;
+        let contents_to_update = fs::read_to_string(dir_entry.path())?;
+        let new_contents = get_updated_file_contents(
+            template_header_lines,
+            contents_to_update
+        )?;
         fs::write(&dir_entry.path(), new_contents)?;
         Ok(())
     })?;
