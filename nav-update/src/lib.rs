@@ -41,7 +41,7 @@ fn get_updated_file_contents(
     contents_to_update: String
 ) -> String {
     let mut iter = contents_to_update.lines();
-    let mut new_contents = String::new();
+    let mut new_contents = String::with_capacity(contents_to_update.len() + template_header_lines.len());
     while let Some(line) = iter.next() {
         if line.contains("<header>") {
             new_contents.push_str(line);
