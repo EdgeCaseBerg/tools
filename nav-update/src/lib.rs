@@ -20,7 +20,7 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
         update_files_in_dir(&config, &header_data)?;
     } else {
         let contents_to_update = fs::read_to_string(&config.path_to_update)?;
-        let new_contents = get_updated_file_contents(&header_data, contents_to_update)?;
+        let new_contents = get_updated_file_contents(&header_data, contents_to_update);
         fs::write(&config.path_to_update, new_contents)?;
     }
     Ok(())
@@ -39,7 +39,7 @@ fn header_lines_from_template(template: &str) -> Vec<&str> {
 fn get_updated_file_contents(
     template_header_lines: &Vec<&str>,
     contents_to_update: String
-) -> Result<String, Box<dyn Error>> {
+) -> String {
     let mut iter = contents_to_update.lines();
     let mut new_contents = String::new();
     while let Some(line) = iter.next() {
@@ -64,7 +64,7 @@ fn get_updated_file_contents(
         }
         new_contents.push_str("\n");
     }
-    Ok(new_contents)
+    new_contents
 }
 
 fn update_files_in_dir(
@@ -80,7 +80,7 @@ fn update_files_in_dir(
         let new_contents = get_updated_file_contents(
             template_header_lines,
             contents_to_update
-        )?;
+        );
         fs::write(&dir_entry.path(), new_contents)?;
         Ok(())
     })?;
@@ -173,5 +173,16 @@ mod tests {
         let contents = "<header>\n<nav>\n<li>hi</li>\n</nav>\n</header>";
         let lines = header_lines_from_template(contents);
         assert_eq!(lines, vec!["<nav>", "<li>hi</li>", "</nav>"]);
+    }
+
+    #[test]
+    fn splices_correctly() {
+        let template = vec!["<nav>","<li>hi</li>","</nav>"];
+        let to_replace_in = "Wont be touched at all\n<header>\n<nav>\n<li>bye</li>\n</nav>\n</header>\nWont be touched";
+        let new_contents = get_updated_file_contents(&template, to_replace_in.to_string());
+        assert_eq!(
+            "Wont be touched at all\n<header>\n<nav>\n<li>hi</li>\n</nav>\n</header>\nWont be touched\n", 
+            new_contents
+        );
     }
 }
