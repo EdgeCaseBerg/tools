@@ -13,6 +13,21 @@ use std::error::Error;
 use std::fs;
 use std::path::Path;
 
+/// Runs the navigation update for the given configuration
+/// Note that the path being updated will be traversed recursively,
+/// filtering the updates to any and all .html files that exist within
+/// the specific directories.
+/// Any HTML file with a `<header>` element will have the contents updated
+/// to match the template file specified in the config.
+///
+/// ```
+/// let config = nav_update::Config {
+///  path_to_update: ".".to_string(),
+///  template_file: "template.html".to_string(),
+/// };
+/// nav_update::run(config);
+/// ```
+///
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let template_file = fs::read_to_string(&config.template_file)?;
     let header_data = header_lines_from_template(&template_file);
@@ -94,6 +109,14 @@ pub struct Config {
 }
 
 impl Config {
+    ///
+    ///```
+    /// use nav_update::Config;
+    /// // Note that your args would normally come via env::args()
+    /// let args = ["program name", "template.html", "."].map(|s| s.to_string());
+    /// let built = Config::build(args.into_iter());
+    ///```
+    ///
     pub fn build(mut args: impl Iterator<Item = String>) -> Result<Config, &'static str> {
         if args.next().is_none() {
             return Err("Didn't get the program name somehow.");
@@ -114,7 +137,7 @@ impl Config {
         })
     }
 
-    pub fn path_is_directory(&self) -> bool {
+    fn path_is_directory(&self) -> bool {
         match fs::metadata(&self.path_to_update) {
             Ok(metadata) => metadata.is_dir(),
             Err(_) => false,
@@ -122,13 +145,21 @@ impl Config {
     }
 }
 
+/// Iterator across a path's contents if the given path is a directory.
+///
+/// If you pass a non directory file as the path, the iterator will be empty.
+///
+/// The directory entries are lazily loaded as each directory is processed by the
+/// next method. Large amounts of folders in or files in a directory may be loaded
+/// unless you take care to exclude hidden folders and the like. Be careful!
+///
 #[derive(Debug)]
-struct RecursiveDirIterator {
+pub struct RecursiveDirIterator {
     q: VecDeque<fs::DirEntry>,
 }
 
 impl RecursiveDirIterator {
-    fn new(d: &Path) -> Result<RecursiveDirIterator, Box<dyn Error>> {
+    pub fn new(d: &Path) -> Result<RecursiveDirIterator, Box<dyn Error>> {
         let mut q = VecDeque::new();
         if d.is_dir() {
             let entries = fs::read_dir(d)?;
@@ -144,6 +175,33 @@ impl RecursiveDirIterator {
 impl Iterator for RecursiveDirIterator {
     type Item = fs::DirEntry;
 
+    /// Returns the next entry for the path being iterated on.
+    ///
+    /// Note that this _does_ include the directories and the individual files.
+    /// We do not skip directory entries while iterator, so be prepared to process them.
+    ///
+    /// The iterator will traverse the files breadth first, so given a folder structure of
+    /// ```markdown
+    /// nav-update/
+    ///     src/
+    ///         lib.rs
+    ///         main.rs
+    ///     Cargo.toml
+    /// ```
+    ///
+    /// When you first call .next() you'll see the contents like this:
+    ///
+    /// ```
+    /// use std::path::Path;
+    /// let mut iter = nav_update::RecursiveDirIterator::new(Path::new(".")).unwrap();
+    /// assert_eq!("Cargo.toml", iter.next().unwrap().file_name());
+    /// assert_eq!("src", iter.next().unwrap().file_name());
+    /// assert_eq!("lib.rs", iter.next().unwrap().file_name());
+    /// assert_eq!("main.rs", iter.next().unwrap().file_name());
+    /// assert!(iter.next().is_none());
+    /// ```
+    ///
+    /// Note that the exact sorting of the files at each level is platform dependent.
     fn next(&mut self) -> Option<fs::DirEntry> {
         let n = self.q.pop_front();
         match n {
