@@ -8,6 +8,7 @@
 //! data should be, and the second beind the path or
 //! file to update according to the template.
 
+use std::collections::VecDeque;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -72,37 +73,18 @@ fn update_files_in_dir(
     config: &Config,
     template_header_lines: &Vec<&str>,
 ) -> Result<(), Box<dyn Error>> {
-    visit_files(
-        Path::new(&config.path_to_update),
-        &|dir_entry: &fs::DirEntry| {
-            if dir_entry.path().extension().and_then(|e| e.to_str()) != Some("html") {
-                return Ok(());
+    let entries = RecursiveDirIterator::new(Path::new(&config.path_to_update))?;
+    entries
+        .filter(|dir_entry| dir_entry.path().extension().and_then(|e| e.to_str()) == Some("html"))
+        .for_each(|dir_entry| {
+            if let Ok(contents_to_update) = fs::read_to_string(dir_entry.path()) {
+                let new_contents =
+                    get_updated_file_contents(template_header_lines, contents_to_update);
+                if let Err(e) = fs::write(&dir_entry.path(), new_contents) {
+                    eprintln!("{e}");
+                }
             }
-
-            let contents_to_update = fs::read_to_string(dir_entry.path())?;
-            let new_contents = get_updated_file_contents(template_header_lines, contents_to_update);
-            fs::write(&dir_entry.path(), new_contents)?;
-            Ok(())
-        },
-    )?;
-    Ok(())
-}
-
-fn visit_files(
-    dir: &Path,
-    action: &dyn Fn(&fs::DirEntry) -> Result<(), Box<dyn Error>>,
-) -> Result<(), Box<dyn Error>> {
-    if dir.is_dir() {
-        for entry in fs::read_dir(dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_dir() {
-                visit_files(&path, action)?;
-            } else {
-                action(&entry)?;
-            }
-        }
-    }
+        });
     Ok(())
 }
 
@@ -136,6 +118,53 @@ impl Config {
         match fs::metadata(&self.path_to_update) {
             Ok(metadata) => metadata.is_dir(),
             Err(_) => false,
+        }
+    }
+}
+
+#[derive(Debug)]
+struct RecursiveDirIterator {
+    q: VecDeque<fs::DirEntry>,
+}
+
+impl RecursiveDirIterator {
+    fn new(d: &Path) -> Result<RecursiveDirIterator, Box<dyn Error>> {
+        let mut q = VecDeque::new();
+        if d.is_dir() {
+            let entries = fs::read_dir(&d)?;
+            for entry in entries {
+                if let Ok(entry) = entry {
+                    q.push_back(entry);
+                }
+            }
+        }
+
+        Ok(RecursiveDirIterator { q })
+    }
+}
+
+impl Iterator for RecursiveDirIterator {
+    type Item = fs::DirEntry;
+
+    fn next(&mut self) -> Option<fs::DirEntry> {
+        let n = self.q.pop_front();
+        match n {
+            None => n,
+            Some(dir_entry) => {
+                let path = dir_entry.path();
+                if path.is_dir() {
+                    if let Ok(entries) = fs::read_dir(&path) {
+                        for entry in entries {
+                            if let Ok(entry) = entry {
+                                self.q.push_back(entry);
+                            }
+                        }
+                    } else {
+                        eprintln!("Could not read entry in path {}", path.display());
+                    }
+                }
+                Some(dir_entry)
+            }
         }
     }
 }
@@ -187,6 +216,31 @@ mod tests {
         assert_eq!(
             "Wont be touched at all\n<header>\n<nav>\n<li>hi</li>\n</nav>\n</header>\nWont be touched\n", 
             new_contents
+        );
+    }
+
+    #[test]
+    fn can_iterate_dir() {
+        let dir = Path::new(".");
+        let iter = RecursiveDirIterator::new(dir).expect("Could not make iterator");
+        let mut rust_files_in_nav_update_dir: Vec<_> = iter
+            .filter(|entry| entry.path().extension().and_then(|e| e.to_str()) == Some("rs"))
+            .collect();
+        rust_files_in_nav_update_dir.sort_by_key(|d| d.file_name());
+
+        assert_eq!(
+            "lib.rs",
+            rust_files_in_nav_update_dir[0]
+                .file_name()
+                .to_str()
+                .unwrap()
+        );
+        assert_eq!(
+            "main.rs",
+            rust_files_in_nav_update_dir[1]
+                .file_name()
+                .to_str()
+                .unwrap()
         );
     }
 }
