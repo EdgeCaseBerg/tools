@@ -47,13 +47,13 @@ fn get_updated_file_contents(
     while let Some(line) = iter.next() {
         if line.contains("<header>") {
             new_contents.push_str(line);
-            new_contents.push_str("\n");
+            new_contents.push('\n');
 
             for templated_line in template_header_lines.iter() {
                 new_contents.push_str(templated_line);
-                new_contents.push_str("\n");
+                new_contents.push('\n');
             }
-            while let Some(line) = iter.next() {
+            for line in iter.by_ref() {
                 if line.contains("</header>") {
                     new_contents.push_str(line);
                     break;
@@ -64,7 +64,7 @@ fn get_updated_file_contents(
         } else {
             new_contents.push_str(line);
         }
-        new_contents.push_str("\n");
+        new_contents.push('\n');
     }
     new_contents
 }
@@ -80,7 +80,7 @@ fn update_files_in_dir(
             if let Ok(contents_to_update) = fs::read_to_string(dir_entry.path()) {
                 let new_contents =
                     get_updated_file_contents(template_header_lines, contents_to_update);
-                if let Err(e) = fs::write(&dir_entry.path(), new_contents) {
+                if let Err(e) = fs::write(dir_entry.path(), new_contents) {
                     eprintln!("{e}");
                 }
             }
@@ -95,7 +95,7 @@ pub struct Config {
 
 impl Config {
     pub fn build(mut args: impl Iterator<Item = String>) -> Result<Config, &'static str> {
-        if let None = args.next() {
+        if args.next().is_none() {
             return Err("Didn't get the program name somehow.");
         };
 
@@ -131,11 +131,9 @@ impl RecursiveDirIterator {
     fn new(d: &Path) -> Result<RecursiveDirIterator, Box<dyn Error>> {
         let mut q = VecDeque::new();
         if d.is_dir() {
-            let entries = fs::read_dir(&d)?;
-            for entry in entries {
-                if let Ok(entry) = entry {
-                    q.push_back(entry);
-                }
+            let entries = fs::read_dir(d)?;
+            for entry in entries.flatten() {
+                q.push_back(entry);
             }
         }
 
@@ -154,10 +152,8 @@ impl Iterator for RecursiveDirIterator {
                 let path = dir_entry.path();
                 if path.is_dir() {
                     if let Ok(entries) = fs::read_dir(&path) {
-                        for entry in entries {
-                            if let Ok(entry) = entry {
-                                self.q.push_back(entry);
-                            }
+                        for entry in entries.flatten() {
+                            self.q.push_back(entry);
                         }
                     } else {
                         eprintln!("Could not read entry in path {}", path.display());
