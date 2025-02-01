@@ -1,0 +1,7 @@
+[package]
+name = "sentimentuber"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+notify = "8.0.0"
