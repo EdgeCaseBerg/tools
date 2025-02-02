@@ -14,6 +14,7 @@ use anyhow;
 use std::collections::HashMap;
 use serde_json::json;
 
+// TODO: Cite https://github.com/ckw017/vader-sentiment-rust?tab=readme-ov-file#citation-information
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
