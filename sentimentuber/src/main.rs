@@ -2,6 +2,10 @@ use notify::{Event, RecursiveMode, Result, Watcher};
 use std::sync::mpsc;
 use std::path::Path;
 use std::fs;
+use std::process;
+use std::env;
+use sentimentuber::Config;
+
 use vader_sentiment;
 use obws::Client;
 use obws::responses::scene_items::SceneItem;
@@ -18,19 +22,21 @@ use serde_json::json;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // TODO get this from the arguments
-    let path = Path::new("./data/text");
+    let config = Config::parse_env();
+    println!("{:?}", config);
+
+    let path = config.input_text_file_path.as_path();
+    let ip = config.obs_ip;
+    let password = config.obs_password;
+    let port = config.obs_port;
+
     let analyzer = vader_sentiment::SentimentIntensityAnalyzer::new();
 
     let state_to_image_file = get_emotion_to_image_map();
 
-    let (ip, password) = get_ip_and_obs_password();
-    let client = Client::connect(ip, 4455, Some(password)).await?;
+    let client = Client::connect(ip, port, Some(password)).await?;
 
     // pre-fetch the image container we'll be tweaking
-    let scene_list = client.scenes().list().await?;
-    println!("{:#?}", scene_list);
-
     let image_source_id = get_image_scene_item(&client).await?;
 
     let (tx, rx) = mpsc::channel::<Result<Event>>();
@@ -55,13 +61,8 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn get_data_from_file(path: &Path) -> String {
-    let s = fs::read_to_string(path).expect("this is a bad idea");
+    let s = fs::read_to_string(path).expect("could not get text data from file shared with localvocal");
     return s
-}
-
-fn get_ip_and_obs_password() -> (String, String) {
-    // TODO take this from cli like the path or something I suppose.
-    return (String::from("10.0.0.182"), String::from("password"));
 }
 
 async fn get_image_scene_item(client: &Client) -> anyhow::Result<SourceId> {
