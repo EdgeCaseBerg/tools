@@ -16,11 +16,14 @@ use std::fs;
 use std::path::Path;
 use std::sync::mpsc;
 use std::time::Duration;
+use std::time::Instant;
 use std::thread;
+use std::collections::VecDeque;
+use std::collections::HashMap;
+
 use vader_sentiment;
 
 use anyhow;
-use std::collections::HashMap;
 
 // TODO: Cite https://github.com/ckw017/vader-sentiment-rust?tab=readme-ov-file#citation-information
 fn main() -> anyhow::Result<()> {
@@ -44,17 +47,27 @@ fn main() -> anyhow::Result<()> {
     let path = config.input_text_file_path.as_path();
     debouncer.watcher().watch(path, RecursiveMode::Recursive).unwrap();
 
+    let mut text_context: VecDeque<(Instant, String)> = VecDeque::new();
     // Blocks forever
     for res in receiver {
         match res {
             Ok(_) => {
-                // TODO:
-                // probably take a bit of file at a time, append to a buffer
-                // and then analyze the buffer rather than do one bit at a time
-                // Also we should keep track of how long its been since data
-                // came in, and then we could use that to do mouth flaps
                 let s = get_data_from_file(path);
-                let emotional_state = get_emotional_state(&s, &analyzer);
+                let mut current_context = String::new();
+
+                let right_now = Instant::now();
+                let drop_time = right_now - Duration::from_secs(10); // TODO make configurable
+                text_context.push_back((right_now, s));
+                text_context = text_context.into_iter().filter(|tuple| {
+                    if tuple.0.ge(&drop_time) {
+                        current_context.push_str(&tuple.1.clone());
+                    }
+                    return tuple.0.ge(&drop_time);
+                }).collect();
+
+                println!("{:?}", current_context);
+
+                let emotional_state = get_emotional_state(&current_context, &analyzer);
                 let image_to_show = state_to_image_file.get(&emotional_state).unwrap();
                 obs_sender.send(image_to_show.to_string()).unwrap();
             }
