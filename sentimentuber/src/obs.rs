@@ -1,3 +1,7 @@
+use crate::cli::Config;
+
+use std::path::Path;
+
 use tokio::runtime::Runtime;
 use tokio::runtime::Builder;
 
@@ -7,9 +11,7 @@ use obws::responses::sources::SourceId;
 use obws::Client;
 
 use serde_json::json;
-use std::path::Path;
-use crate::cli;
- 
+
 pub struct OBSController {
 	client: Client,
 	image_source_id: SourceId,
@@ -17,7 +19,7 @@ pub struct OBSController {
 }
 
 impl OBSController {
-	pub fn new(config: &cli::Config) -> Result<Self, obws::error::Error> {
+	pub fn new(config: &Config) -> Result<Self, obws::error::Error> {
 		let runtime = Builder::new_multi_thread()
 	        .worker_threads(1)
 	        .enable_all()
@@ -28,7 +30,7 @@ impl OBSController {
 	    let password = config.obs_password.clone();
 	    let port = config.obs_port.clone();
 	    let client = runtime.block_on(Client::connect(ip, port, Some(password)))?;
-	    let image_source_name = String::from("Image"); // todo take from config
+	    let image_source_name = config.obs_source_name.clone();
 	    let image_source_id = runtime.block_on(get_image_scene_item(&client, &image_source_name))?;
 
 		Ok(OBSController {
