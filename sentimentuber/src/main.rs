@@ -5,8 +5,10 @@
 //! avatar based on keywords and sentiment.
 
 mod cli;
-
 use cli::Config;
+
+mod obs;
+use obs::OBSController;
 
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
@@ -14,38 +16,35 @@ use std::fs;
 use std::path::Path;
 use std::sync::mpsc;
 use std::time::Duration;
-
-use obws::requests::inputs::SetSettings;
-use obws::requests::scene_items::Source;
-use obws::responses::sources::SourceId;
-use obws::Client;
+use std::thread;
 use vader_sentiment;
 
 use anyhow;
-use serde_json::json;
 use std::collections::HashMap;
-use tokio;
 
 // TODO: Cite https://github.com/ckw017/vader-sentiment-rust?tab=readme-ov-file#citation-information
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<()> {
     let config = Config::parse_env();
+    let obs_control = OBSController::new(&config)?;
+
     let path = config.input_text_file_path.as_path();
-    let ip = config.obs_ip;
-    let password = config.obs_password;
-    let port = config.obs_port;
-    let debounce_milli = config.event_debouncing_duration_ms;
+    let debounce_milli = config.event_debouncing_duration_ms.clone();
 
     let analyzer = vader_sentiment::SentimentIntensityAnalyzer::new();
     let state_to_image_file = get_emotion_to_image_map();
-    let client = Client::connect(ip, port, Some(password)).await?;
-    let image_source_id = get_image_scene_item(&client).await?;
+    
+    let (obs_sender, obs_receiver) = mpsc::channel::<String>();
+    thread::spawn(move || {
+        for res in obs_receiver {
+            let image_to_show = res;
+            obs_control.swap_image_to(&image_to_show).expect("OBS failed to swap images");
+        }
+    });
 
     let (sender, receiver) = mpsc::channel();
     let mut debouncer = new_debouncer(Duration::from_millis(debounce_milli), sender).unwrap();
     debouncer.watcher().watch(path, RecursiveMode::Recursive).unwrap();
-    // Block forever, printing out events as they come in
+    // Blocks forever
     for res in receiver {
         match res {
             Ok(event) => {
@@ -55,15 +54,13 @@ async fn main() -> anyhow::Result<()> {
                 // Also we should keep track of how long its been since data
                 // came in, and then we could use that to do mouth flaps
                 let s = get_data_from_file(path);
-                // we'll do something with the score later.
                 let emotional_state = get_emotional_state(&s, &analyzer);
                 let image_to_show = state_to_image_file.get(&emotional_state).unwrap();
-                swap_obs_image_to(&image_source_id, &image_to_show, &client).await?;
+                obs_sender.send(image_to_show.to_string()).unwrap();
             }
-            Err(e) => eprintln!("watch error: {:?}", e),
-        }
+            Err(e) => {eprintln!("watch error: {:?}", e);}
+        };
     }
-
     Ok(())
 }
 
@@ -71,57 +68,6 @@ fn get_data_from_file(path: &Path) -> String {
     let s =
         fs::read_to_string(path).expect("could not get text data from file shared with localvocal");
     return s;
-}
-
-async fn get_image_scene_item(client: &Client) -> anyhow::Result<SourceId> {
-    let scenes_struct = client.scenes().list().await?;
-    let test_scene = scenes_struct
-        .scenes
-        .iter()
-        .find(|scene| scene.id.name.contains("SentimentTuber"))
-        .expect("Could not find OBS scene by name");
-
-    let items_in_scene = client
-        .scene_items()
-        .list(test_scene.id.clone().into())
-        .await?;
-    let image_source = items_in_scene
-        .iter()
-        .find(|item| {
-            // TODO: use a better name than "Image" obviously.
-            item.source_name.contains("Image")
-        })
-        .expect("No image source found in OBS scene for the avatar");
-
-    let source_id = client
-        .scene_items()
-        .source(Source {
-            scene: test_scene.id.clone().into(),
-            item_id: image_source.id.clone().into(),
-        })
-        .await?;
-
-    Ok(source_id)
-}
-
-async fn swap_obs_image_to(
-    source_id: &SourceId,
-    new_file_path: &str,
-    client: &Client,
-) -> anyhow::Result<()> {
-    let path = Path::new(new_file_path);
-    let absolute = Path::canonicalize(path)?;
-    let setting = json!({"file": absolute});
-    client
-        .inputs()
-        .set_settings(SetSettings {
-            input: (&*source_id.name).into(),
-            settings: &setting,
-            overlay: Some(true),
-        })
-        .await?;
-
-    Ok(())
 }
 
 #[derive(Debug, Hash, Eq, PartialEq)]
