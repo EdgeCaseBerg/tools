@@ -26,13 +26,6 @@ use std::collections::HashMap;
 fn main() -> anyhow::Result<()> {
     let config = Config::parse_env();
     let obs_control = OBSController::new(&config)?;
-
-    let path = config.input_text_file_path.as_path();
-    let debounce_milli = config.event_debouncing_duration_ms.clone();
-
-    let analyzer = vader_sentiment::SentimentIntensityAnalyzer::new();
-    let state_to_image_file = get_emotion_to_image_map();
-    
     let (obs_sender, obs_receiver) = mpsc::channel::<String>();
     thread::spawn(move || {
         for res in obs_receiver {
@@ -41,13 +34,20 @@ fn main() -> anyhow::Result<()> {
         }
     });
 
+    let analyzer = vader_sentiment::SentimentIntensityAnalyzer::new();
+    let state_to_image_file = get_emotion_to_image_map();
+
     let (sender, receiver) = mpsc::channel();
+    let debounce_milli = config.event_debouncing_duration_ms.clone();
     let mut debouncer = new_debouncer(Duration::from_millis(debounce_milli), sender).unwrap();
+
+    let path = config.input_text_file_path.as_path();
     debouncer.watcher().watch(path, RecursiveMode::Recursive).unwrap();
+
     // Blocks forever
     for res in receiver {
         match res {
-            Ok(event) => {
+            Ok(_) => {
                 // TODO:
                 // probably take a bit of file at a time, append to a buffer
                 // and then analyze the buffer rather than do one bit at a time
