@@ -991,6 +991,7 @@ dependencies = [
  "notify",
  "notify-debouncer-mini",
  "obws",
+ "serde",
  "serde_json",
  "tokio",
  "vader_sentiment",
