@@ -10,6 +10,8 @@ use cli::Config;
 mod obs;
 use obs::OBSController;
 
+mod rules;
+
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 use std::fs;
