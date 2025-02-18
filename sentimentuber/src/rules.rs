@@ -1,4 +1,8 @@
 use serde::{Deserialize, Serialize};
+use std::error::Error;
+use std::fs::File;
+use std::io::BufReader;
+use std::path::PathBuf;
 
 /// An action to be taken related to a sentiment, only supports showing an image for now
 /// ```
@@ -19,6 +23,7 @@ enum SentimentField {
 	Neutral
 }
 
+/// Expresses a condition that the given sentiment field will be within the range (inclusive) 
 #[derive(Debug, Serialize, Deserialize)]
 struct PolarityRange {
 	low: f32,
@@ -28,8 +33,11 @@ struct PolarityRange {
 
 #[derive(Debug, Serialize, Deserialize)]
 enum Relation {
+	/// Greater than
 	GT,
+	/// Less than
 	LT,
+	/// Equal to
 	EQ
 }
 
@@ -70,6 +78,16 @@ struct SentimentRule {
 	priority: u32,
 	action: SentimentAction,
 	condition: SentimentCondition
+}
+
+pub fn load_from_file(path: &PathBuf) -> Result<Vec<SentimentRule>, Box<dyn Error>> {
+	let file = File::open(path)?;
+	let reader = BufReader::new(file);
+	let mut parsed: Vec<SentimentRule> = serde_json::from_reader(reader)?;
+	let valid_rules = parsed.into_iter().filter(|unvalidated_rule| {
+		!unvalidated_rule.condition.is_empty()
+	}).collect();
+	Ok(valid_rules)
 }
 
 #[cfg(test)]
