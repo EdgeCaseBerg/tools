@@ -11,6 +11,7 @@ mod obs;
 use obs::OBSController;
 
 mod rules;
+use rules::load_from_file;
 
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
@@ -23,9 +24,17 @@ use std::thread;
 use std::collections::VecDeque;
 use std::collections::HashMap;
 
+
 // TODO: Cite https://github.com/ckw017/vader-sentiment-rust?tab=readme-ov-file#citation-information
 fn main() -> anyhow::Result<()> {
     let config = Config::parse_env();
+    let rules = load_from_file(&config.rules_file).unwrap_or_else(|_| {
+        panic!(
+            "Could not load rules file [{0}]", 
+            config.rules_file.to_string_lossy()
+        )
+    });
+    println!("{:?}", rules);
     let obs_control = OBSController::new(&config)?;
     let (obs_sender, obs_receiver) = mpsc::channel::<String>();
     thread::spawn(move || {

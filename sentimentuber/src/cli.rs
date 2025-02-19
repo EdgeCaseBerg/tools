@@ -11,8 +11,12 @@ use clap::Parser;
 #[command(version, about, long_about = None)]
 pub struct Config {
     /// Path to localvocal (or similar) transcript file
-    #[arg(long = "file", value_name = "FILE")]
+    #[arg(short = 'f', long = "file", value_name = "FILE")]
     pub input_text_file_path: PathBuf,
+
+    /// Path to the rules file, defaults to rules.json
+    #[arg(short = 'r', long = "rules_file", value_name = "FILE", default_value = "rules.json")]
+    pub rules_file: PathBuf,
 
     /// IP address of OBS websocket
     #[arg(long = "ip")]
