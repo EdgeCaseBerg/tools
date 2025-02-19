@@ -1,0 +1,88 @@
+[
+	{
+		"priority": 0,
+		"action": {
+			"show": "./data/neutral.png"
+		},
+		"condition": {
+			"polarity_ranges": [
+				{
+					"low": 0,
+					"high": 1,
+					"field": "Neutral"
+				},
+				{
+					"low": 0,
+					"high": 1,
+					"field": "Positive"
+				},
+				{
+					"low": 0,
+					"high": 1,
+					"field": "Negative"
+				}
+			]
+		}
+	},
+	{
+		"priority": 2,
+		"action": {
+			"show": "./data/thumbsup.png"
+		},
+		"condition": {
+			"contains_word": ["good job"]
+		}
+	},
+	{
+		"priority": 2,
+		"action": {
+			"show": "./data/promise.png"
+		},
+		"condition": {
+			"contains_word": ["promise"]
+		}
+	},
+	{
+		"priority": 2,
+		"action": {
+			"show": "./data/smug.png"
+		},
+		"condition": {
+			"contains_word": [
+				"I'm the best",
+				"I am the best"
+			]
+		}
+	},
+	{
+		"priority": 2,
+		"action": {
+			"show": "./data/sad.png"
+		},
+		"condition": {
+			"contains_word": [
+				"bummer"
+			]
+		}
+	},
+	{
+		"priority": 1,
+		"action": {
+			"show": "./data/mad.png"
+		},
+		"condition": {
+			"polarity_relations": [
+				{
+					"left": "Positive",
+					"relation": "LT",
+					"right": "Negative"
+				},
+				{
+					"left": "Neutral",
+					"relation": "LT",
+					"right": "Negative"
+				}
+			]
+		}
+	}
+]

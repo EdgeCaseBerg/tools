@@ -28,10 +28,11 @@ use std::collections::HashMap;
 // TODO: Cite https://github.com/ckw017/vader-sentiment-rust?tab=readme-ov-file#citation-information
 fn main() -> anyhow::Result<()> {
     let config = Config::parse_env();
-    let rules = load_from_file(&config.rules_file).unwrap_or_else(|_| {
+    let rules = load_from_file(&config.rules_file).unwrap_or_else(|e| {
         panic!(
-            "Could not load rules file [{0}]", 
-            config.rules_file.to_string_lossy()
+            "Could not load rules file [{0}] {1}", 
+            config.rules_file.to_string_lossy(),
+            e
         )
     });
     println!("{:?}", rules);
