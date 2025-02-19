@@ -23,10 +23,6 @@ use std::thread;
 use std::collections::VecDeque;
 use std::collections::HashMap;
 
-use vader_sentiment;
-
-use anyhow;
-
 // TODO: Cite https://github.com/ckw017/vader-sentiment-rust?tab=readme-ov-file#citation-information
 fn main() -> anyhow::Result<()> {
     let config = Config::parse_env();
@@ -43,7 +39,7 @@ fn main() -> anyhow::Result<()> {
     let state_to_image_file = get_emotion_to_image_map();
 
     let (sender, receiver) = mpsc::channel();
-    let debounce_milli = config.event_debouncing_duration_ms.clone();
+    let debounce_milli = config.event_debouncing_duration_ms;
     let mut debouncer = new_debouncer(Duration::from_millis(debounce_milli), sender).unwrap();
 
     let path = config.input_text_file_path.as_path();
@@ -60,12 +56,12 @@ fn main() -> anyhow::Result<()> {
                 let right_now = Instant::now();
                 let drop_time = right_now - Duration::from_secs(10); // TODO make configurable
                 text_context.push_back((right_now, s));
-                text_context = text_context.into_iter().filter(|tuple| {
-                    if tuple.0.ge(&drop_time) {
-                        current_context.push_str(&tuple.1.clone());
-                    }
-                    return tuple.0.ge(&drop_time);
-                }).collect();
+                text_context.retain(|tuple| {
+                     if tuple.0.ge(&drop_time) {
+                         current_context.push_str(&tuple.1.clone());
+                     }
+                     tuple.0.ge(&drop_time)
+                });
 
                 println!("{:?}", current_context);
 
@@ -80,9 +76,7 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn get_data_from_file(path: &Path) -> String {
-    let s =
-        fs::read_to_string(path).expect("could not get text data from file shared with localvocal");
-    return s;
+    fs::read_to_string(path).expect("could not get text data from file shared with localvocal")
 }
 
 #[derive(Debug, Hash, Eq, PartialEq)]
@@ -111,7 +105,7 @@ fn get_emotion_to_image_map() -> HashMap<EmotionalState, &'static str> {
 // define things like keyword foo -> Bla and letting rules cascade would be good
 // not to mention we'll need to think about blinking or similar things one should do regularly.
 fn get_emotional_state(
-    sentence: &String,
+    sentence: &str,
     analyzer: &vader_sentiment::SentimentIntensityAnalyzer,
 ) -> EmotionalState {
     if sentence.contains("good job") {
@@ -128,11 +122,11 @@ fn get_emotional_state(
         return EmotionalState::Sad;
     }
 
-    let scores = analyzer.polarity_scores(&sentence);
+    let scores = analyzer.polarity_scores(sentence);
     // we'll tweak these later once we know more about the library.
-    let positive = scores.get("pos").unwrap_or_else(|| &0.0);
-    let negative = scores.get("neg").unwrap_or_else(|| &0.0);
-    let neutral = scores.get("neu").unwrap_or_else(|| &0.0);
+    let positive = scores.get("pos").unwrap_or(&0.0);
+    let negative = scores.get("neg").unwrap_or(&0.0);
+    let neutral = scores.get("neu").unwrap_or(&0.0);
 
     if positive < negative && neutral < negative {
         return EmotionalState::Mad;

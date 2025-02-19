@@ -28,7 +28,7 @@ impl OBSController {
 
 		let ip = config.obs_ip.clone();
 	    let password = config.obs_password.clone();
-	    let port = config.obs_port.clone();
+	    let port = config.obs_port;
 	    let client = runtime.block_on(Client::connect(ip, port, Some(password)))?;
 	    let image_source_name = config.obs_source_name.clone();
 	    let image_source_id = runtime.block_on(get_image_scene_item(&client, &image_source_name))?;
@@ -71,7 +71,7 @@ async fn get_image_scene_item(client: &Client, image_source_name: &str) -> Resul
         .scene_items()
         .source(Source {
             scene: test_scene.id.clone().into(),
-            item_id: image_source.id.clone().into(),
+            item_id: image_source.id,
         })
         .await?;
 
