@@ -53,7 +53,7 @@ async fn get_image_scene_item(client: &Client, image_source_name: &str) -> Resul
     let test_scene = scenes_struct
         .scenes
         .iter()
-        .find(|scene| scene.id.name.contains("SentimentTuber"))
+        .find(|scene| scene.id.name.contains("SentimentTuber")) //TODO deal with this
         .expect("Could not find OBS scene by name");
 
     let items_in_scene = client
