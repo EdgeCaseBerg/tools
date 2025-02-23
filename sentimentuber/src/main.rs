@@ -14,6 +14,7 @@ mod rules;
 use rules::load_from_file;
 use rules::SentimentAction;
 use rules::SentimentRule;
+use rules::SentimentField;
 
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
@@ -99,33 +100,46 @@ fn get_action_for_sentiment(
     analyzer: &vader_sentiment::SentimentIntensityAnalyzer,
     current_rules: &Vec<SentimentRule>
 ) -> SentimentAction {
-    if sentence.contains("good job") {
-        return SentimentAction {
-            show: "./data/thumbsup.png".to_string()
-        };
-    }
-    if sentence.contains("promise") {
-        return SentimentAction {
-            show: "./data/promise.png".to_string()
-        };
-    }
-    if sentence.contains("I'm the best") || sentence.contains("I am the best") {
-        return SentimentAction {
-            show: "./data/smug.png".to_string()
-        };
-    }
-
-    if sentence.contains("bummer") {
-        return SentimentAction{
-            show: "./data/sad.png".to_string()
-        };
-    }
-
     let scores = analyzer.polarity_scores(sentence);
-    // we'll tweak these later once we know more about the library.
+    // we'll tweak these later once we know more about the library. 
     let positive = scores.get("pos").unwrap_or(&0.0);
     let negative = scores.get("neg").unwrap_or(&0.0);
     let neutral = scores.get("neu").unwrap_or(&0.0);
+
+    let maybe_action = current_rules.iter().find(|&rule| {
+        let condition = &rule.condition;
+        // fix this up so it doesn't immediately return
+        if let Some(words) = &condition.contains_words {
+            let contains_words = words.iter().find(|word| {
+                sentence.contains(*word)
+            }).is_some();
+            if contains_words {
+                return true;
+            }
+        }
+
+        
+        if let Some(ranges) = &condition.polarity_ranges {
+            let is_in_range = ranges.iter().find(|&range| {
+                let field = match &range.field {
+                    SentimentField::Positive => positive,
+                    SentimentField::Negative => negative,
+                    SentimentField::Neutral => neutral 
+                };
+                range.low <= *field && *field <= range.high
+            }).is_some();
+            if is_in_range {
+                return true;
+            }
+        }
+        
+
+        // &condition.polarity_relations
+
+        false
+    });
+
+    println!("{:?}", maybe_action);
 
     if positive < negative && neutral < negative {
         return SentimentAction {

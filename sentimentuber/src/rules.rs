@@ -25,9 +25,9 @@ pub enum SentimentField {
 
 /// Expresses a condition that the given sentiment field will be within the range (inclusive) 
 #[derive(Debug, Serialize, Deserialize)]
-struct PolarityRange {
-	pub low: f32,
-	pub high: f32,
+pub struct PolarityRange {
+	pub low: f64,
+	pub high: f64,
 	pub field: SentimentField
 }
 
@@ -50,9 +50,9 @@ pub struct PolarityRelation {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SentimentCondition {
-	contains_words: Option<Vec<String>>,
-	polarity_ranges: Option<Vec<PolarityRange>>,
-	polarity_relations: Option<Vec<PolarityRelation>>
+	pub contains_words: Option<Vec<String>>,
+	pub polarity_ranges: Option<Vec<PolarityRange>>,
+	pub polarity_relations: Option<Vec<PolarityRelation>>
 }
 
 impl SentimentCondition {
@@ -65,9 +65,9 @@ impl SentimentCondition {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SentimentRule {
-	priority: u32,
-	action: SentimentAction,
-	condition: SentimentCondition
+	pub priority: u32,
+	pub action: SentimentAction,
+	pub condition: SentimentCondition
 }
 
 pub fn load_from_file(path: &PathBuf) -> Result<Vec<SentimentRule>, Box<dyn Error>> {
