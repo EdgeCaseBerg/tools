@@ -126,7 +126,7 @@ pub struct SentimentRule {
 
 impl SentimentRule {
 	pub fn applies_to(&self, sentence: &str, polarity: &ContextPolarity) -> bool {
-		let rule_checks = vec![
+		let rule_checks = [
             self.condition.context_contains_words(sentence),
             self.condition.context_in_polarity_range(polarity),
             self.condition.context_has_polarity_relations(polarity)
@@ -141,7 +141,7 @@ impl SentimentRule {
             return false;
         }
 
-        return applicable_checks.iter().all(|&bool| bool);
+        applicable_checks.iter().all(|&bool| bool)
 	}
 }
 

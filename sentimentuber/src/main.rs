@@ -48,7 +48,6 @@ fn main() -> anyhow::Result<()> {
 
     let analyzer = vader_sentiment::SentimentIntensityAnalyzer::new();
 
-
     let (sender, receiver) = mpsc::channel();
     let debounce_milli = config.event_debouncing_duration_ms;
     let mut debouncer = new_debouncer(Duration::from_millis(debounce_milli), sender).unwrap();
@@ -109,7 +108,7 @@ fn get_action_for_sentiment(
     current_rules: &[SentimentRule]
 ) -> SentimentAction {
     let maybe_action = current_rules.iter().find(|&rule| {
-        return rule.applies_to(sentence, polarity);
+        rule.applies_to(sentence, polarity)
     });
 
     match maybe_action {
