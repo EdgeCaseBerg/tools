@@ -30,7 +30,7 @@
 			"show": "./data/thumbsup.png"
 		},
 		"condition": {
-			"contains_word": ["good job"]
+			"contains_words": ["good job"]
 		}
 	},
 	{
@@ -39,7 +39,7 @@
 			"show": "./data/promise.png"
 		},
 		"condition": {
-			"contains_word": ["promise"]
+			"contains_words": ["promise"]
 		}
 	},
 	{
@@ -48,7 +48,7 @@
 			"show": "./data/smug.png"
 		},
 		"condition": {
-			"contains_word": [
+			"contains_words": [
 				"I'm the best",
 				"I am the best"
 			]
@@ -60,7 +60,7 @@
 			"show": "./data/sad.png"
 		},
 		"condition": {
-			"contains_word": [
+			"contains_words": [
 				"bummer"
 			]
 		}
