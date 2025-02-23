@@ -74,9 +74,10 @@ pub fn load_from_file(path: &PathBuf) -> Result<Vec<SentimentRule>, Box<dyn Erro
 	let file = File::open(path)?;
 	let reader = BufReader::new(file);
 	let parsed: Vec<SentimentRule> = serde_json::from_reader(reader)?;
-	let valid_rules = parsed.into_iter().filter(|unvalidated_rule| {
+	let mut valid_rules: Vec<SentimentRule> = parsed.into_iter().filter(|unvalidated_rule| {
 		!unvalidated_rule.condition.is_empty()
 	}).collect();
+	valid_rules.sort_by_key(|rule| rule.priority);
 	Ok(valid_rules)
 }
 

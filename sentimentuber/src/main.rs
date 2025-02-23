@@ -13,6 +13,7 @@ use obs::OBSController;
 mod rules;
 use rules::load_from_file;
 use rules::SentimentAction;
+use rules::SentimentRule;
 
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
@@ -34,6 +35,7 @@ fn main() -> anyhow::Result<()> {
             e
         )
     });
+
     println!("{:?}", rules);
     let obs_control = OBSController::new(&config)?;
     let (obs_sender, obs_receiver) = mpsc::channel::<String>();
@@ -45,6 +47,7 @@ fn main() -> anyhow::Result<()> {
     });
 
     let analyzer = vader_sentiment::SentimentIntensityAnalyzer::new();
+
 
     let (sender, receiver) = mpsc::channel();
     let debounce_milli = config.event_debouncing_duration_ms;
@@ -73,7 +76,7 @@ fn main() -> anyhow::Result<()> {
 
                 println!("{:?}", current_context);
 
-                let sentiment_action = get_emotional_state(&current_context, &analyzer);
+                let sentiment_action = get_action_for_sentiment(&current_context, &analyzer, &rules);
                 let image_to_show = sentiment_action.show;
                 obs_sender.send(image_to_show.to_string()).unwrap();
             }
@@ -91,9 +94,10 @@ fn get_data_from_file(path: &Path) -> String {
 // probably make this file based rather than compile code based to some extent
 // define things like keyword foo -> Bla and letting rules cascade would be good
 // not to mention we'll need to think about blinking or similar things one should do regularly.
-fn get_emotional_state(
+fn get_action_for_sentiment(
     sentence: &str,
     analyzer: &vader_sentiment::SentimentIntensityAnalyzer,
+    current_rules: &Vec<SentimentRule>
 ) -> SentimentAction {
     if sentence.contains("good job") {
         return SentimentAction {
