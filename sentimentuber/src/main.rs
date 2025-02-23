@@ -39,8 +39,7 @@ fn main() -> anyhow::Result<()> {
     let obs_control = OBSController::new(&config)?;
     let (obs_sender, obs_receiver) = mpsc::channel::<String>();
     thread::spawn(move || {
-        for res in obs_receiver {
-            let image_to_show = res;
+        for image_to_show in obs_receiver {
             obs_control.swap_image_to(&image_to_show).expect("OBS failed to swap images");
         }
     });
