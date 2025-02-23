@@ -64,17 +64,3 @@ where
         }
     }
 }
-
-pub fn get_context_polarity(sentence: &str, analyzer: &vader_sentiment::SentimentIntensityAnalyzer) -> ContextPolarity {
-    let scores = analyzer.polarity_scores(sentence);
-    let positive = scores.get("pos").unwrap_or(&0.0);
-    let negative = scores.get("neg").unwrap_or(&0.0);
-    let neutral = scores.get("neu").unwrap_or(&0.0);
-
-    ContextPolarity {
-        positive: *positive,
-        negative: *negative,
-        neutral: *neutral
-    }
-}
-

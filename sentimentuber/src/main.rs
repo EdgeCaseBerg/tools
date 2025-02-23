@@ -12,10 +12,11 @@ use obs::OBSController;
 
 mod rules;
 use rules::load_from_file;
+use rules::ContextPolarity;
+use rules::SentimentAction;
 
 mod sentiment;
 use sentiment::SentimentEngine;
-use sentiment::get_context_polarity;
 
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
@@ -36,10 +37,10 @@ fn main() -> anyhow::Result<()> {
     });
 
     let obs_control = OBSController::new(&config)?;
-    let (obs_sender, obs_receiver) = mpsc::channel::<String>();
+    let (obs_sender, obs_receiver) = mpsc::channel::<SentimentAction>();
     thread::spawn(move || {
         for image_to_show in obs_receiver {
-            obs_control.swap_image_to(&image_to_show).expect("OBS failed to swap images");
+            obs_control.swap_image_to(&image_to_show.show).expect("OBS failed to swap images");
         }
     });
 
@@ -59,10 +60,10 @@ fn main() -> anyhow::Result<()> {
     for res in receiver {
         match res {
             Ok(_) => {
-                let s = fs::read_to_string(path).expect("could not get text data from file shared with localvocal");
-                polarity_engine.add_context(s);
+                let new_context = fs::read_to_string(path).expect("could not get text data from file shared with localvocal");
+                polarity_engine.add_context(new_context);
                 let sentiment_action = polarity_engine.get_action();
-                obs_sender.send(sentiment_action.show.to_string()).unwrap();
+                obs_sender.send(sentiment_action).unwrap();
             }
             Err(e) => {
                 eprintln!("watch error: {:?}", e);
@@ -70,4 +71,17 @@ fn main() -> anyhow::Result<()> {
         };
     }
     Ok(())
+}
+
+fn get_context_polarity(sentence: &str, analyzer: &vader_sentiment::SentimentIntensityAnalyzer) -> ContextPolarity {
+    let scores = analyzer.polarity_scores(sentence);
+    let positive = scores.get("pos").unwrap_or(&0.0);
+    let negative = scores.get("neg").unwrap_or(&0.0);
+    let neutral = scores.get("neu").unwrap_or(&0.0);
+
+    ContextPolarity {
+        positive: *positive,
+        negative: *negative,
+        neutral: *neutral
+    }
 }
