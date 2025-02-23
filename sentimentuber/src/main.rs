@@ -12,18 +12,17 @@ use obs::OBSController;
 
 mod rules;
 use rules::load_from_file;
-use rules::SentimentAction;
-use rules::SentimentRule;
-use rules::ContextPolarity;
+
+mod sentiment;
+use sentiment::SentimentEngine;
+use sentiment::get_context_polarity;
 
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 use std::fs;
 use std::sync::mpsc;
 use std::time::Duration;
-use std::time::Instant;
 use std::thread;
-use std::collections::VecDeque;
 
 // TODO: Cite https://github.com/ckw017/vader-sentiment-rust?tab=readme-ov-file#citation-information
 fn main() -> anyhow::Result<()> {
@@ -45,70 +44,30 @@ fn main() -> anyhow::Result<()> {
     });
 
     let analyzer = vader_sentiment::SentimentIntensityAnalyzer::new();
+    let mut polarity_engine = SentimentEngine::new(|sentence| {
+        get_context_polarity(sentence, &analyzer)
+    });
+    polarity_engine.set_rules(rules);
 
     let (sender, receiver) = mpsc::channel();
     let debounce_milli = config.event_debouncing_duration_ms;
     let mut debouncer = new_debouncer(Duration::from_millis(debounce_milli), sender).unwrap();
-
     let path = config.input_text_file_path.as_path();
     debouncer.watcher().watch(path, RecursiveMode::Recursive).unwrap();
 
-    let mut text_context: VecDeque<(Instant, String)> = VecDeque::new();
     // Blocks forever
     for res in receiver {
         match res {
             Ok(_) => {
                 let s = fs::read_to_string(path).expect("could not get text data from file shared with localvocal");
-                let mut current_context = String::new();
-
-                let right_now = Instant::now();
-                let drop_time = right_now - Duration::from_secs(10); // TODO make configurable
-                text_context.push_back((right_now, s));
-                text_context.retain(|tuple| {
-                     if tuple.0.ge(&drop_time) {
-                         current_context.push_str(&tuple.1.clone());
-                     }
-                     tuple.0.ge(&drop_time)
-                });
-
-                let polarity = get_context_polarity(&current_context, &analyzer);
-                let sentiment_action = get_action_for_sentiment(&current_context, &polarity, &rules);
-                let image_to_show = sentiment_action.show;
-                obs_sender.send(image_to_show.to_string()).unwrap();
+                polarity_engine.add_context(s);
+                let sentiment_action = polarity_engine.get_action();
+                obs_sender.send(sentiment_action.show.to_string()).unwrap();
             }
-            Err(e) => {eprintln!("watch error: {:?}", e);}
+            Err(e) => {
+                eprintln!("watch error: {:?}", e);
+            }
         };
     }
     Ok(())
-}
-
-fn get_context_polarity(sentence: &str, analyzer: &vader_sentiment::SentimentIntensityAnalyzer) -> ContextPolarity {
-    let scores = analyzer.polarity_scores(sentence);
-    let positive = scores.get("pos").unwrap_or(&0.0);
-    let negative = scores.get("neg").unwrap_or(&0.0);
-    let neutral = scores.get("neu").unwrap_or(&0.0);
-
-    ContextPolarity {
-        positive: *positive,
-        negative: *negative,
-        neutral: *neutral
-    }
-}
-
-// TODO for p3 post, discrete to continuous emotion to support blink etc?
-fn get_action_for_sentiment(
-    sentence: &str,
-    polarity: &ContextPolarity,
-    current_rules: &[SentimentRule]
-) -> SentimentAction {
-    let maybe_action = current_rules.iter().find(|&rule| {
-        rule.applies_to(sentence, polarity)
-    });
-
-    match maybe_action {
-        Some(rule_based_action) => rule_based_action.action.clone(),
-        None => SentimentAction {
-            show: "./data/neutral.png".to_string()
-        }
-    }
 }
