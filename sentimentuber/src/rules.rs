@@ -12,7 +12,7 @@ use std::path::PathBuf;
 /// assert_eq(p.unwrap(), SentimentAction { show: "./data/pic.png" })
 /// ```
 #[derive(Debug, Serialize, Deserialize)]
-struct SentimentAction {
+pub struct SentimentAction {
 	pub show: String
 }
 

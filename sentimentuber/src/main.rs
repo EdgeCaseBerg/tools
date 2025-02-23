@@ -12,6 +12,7 @@ use obs::OBSController;
 
 mod rules;
 use rules::load_from_file;
+use rules::SentimentAction;
 
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
@@ -22,8 +23,6 @@ use std::time::Duration;
 use std::time::Instant;
 use std::thread;
 use std::collections::VecDeque;
-use std::collections::HashMap;
-
 
 // TODO: Cite https://github.com/ckw017/vader-sentiment-rust?tab=readme-ov-file#citation-information
 fn main() -> anyhow::Result<()> {
@@ -46,7 +45,6 @@ fn main() -> anyhow::Result<()> {
     });
 
     let analyzer = vader_sentiment::SentimentIntensityAnalyzer::new();
-    let state_to_image_file = get_emotion_to_image_map();
 
     let (sender, receiver) = mpsc::channel();
     let debounce_milli = config.event_debouncing_duration_ms;
@@ -75,8 +73,8 @@ fn main() -> anyhow::Result<()> {
 
                 println!("{:?}", current_context);
 
-                let emotional_state = get_emotional_state(&current_context, &analyzer);
-                let image_to_show = state_to_image_file.get(&emotional_state).unwrap();
+                let sentiment_action = get_emotional_state(&current_context, &analyzer);
+                let image_to_show = sentiment_action.show;
                 obs_sender.send(image_to_show.to_string()).unwrap();
             }
             Err(e) => {eprintln!("watch error: {:?}", e);}
@@ -89,27 +87,6 @@ fn get_data_from_file(path: &Path) -> String {
     fs::read_to_string(path).expect("could not get text data from file shared with localvocal")
 }
 
-#[derive(Debug, Hash, Eq, PartialEq)]
-enum EmotionalState {
-    Neutral,
-    Mad,
-    MakingAPromise,
-    Sad,
-    Smug,
-    ThumbsUp,
-}
-
-fn get_emotion_to_image_map() -> HashMap<EmotionalState, &'static str> {
-    HashMap::from([
-        (EmotionalState::Neutral, "./data/neutral.png"),
-        (EmotionalState::Mad, "./data/mad.png"),
-        (EmotionalState::MakingAPromise, "./data/promise.png"),
-        (EmotionalState::Sad, "./data/sad.png"),
-        (EmotionalState::Smug, "./data/smug.png"),
-        (EmotionalState::ThumbsUp, "./data/thumbsup.png"),
-    ])
-}
-
 // TODO:
 // probably make this file based rather than compile code based to some extent
 // define things like keyword foo -> Bla and letting rules cascade would be good
@@ -117,19 +94,27 @@ fn get_emotion_to_image_map() -> HashMap<EmotionalState, &'static str> {
 fn get_emotional_state(
     sentence: &str,
     analyzer: &vader_sentiment::SentimentIntensityAnalyzer,
-) -> EmotionalState {
+) -> SentimentAction {
     if sentence.contains("good job") {
-        return EmotionalState::ThumbsUp;
+        return SentimentAction {
+            show: "./data/thumbsup.png".to_string()
+        };
     }
     if sentence.contains("promise") {
-        return EmotionalState::MakingAPromise;
+        return SentimentAction {
+            show: "./data/promise.png".to_string()
+        };
     }
     if sentence.contains("I'm the best") || sentence.contains("I am the best") {
-        return EmotionalState::Smug;
+        return SentimentAction {
+            show: "./data/smug.png".to_string()
+        };
     }
 
     if sentence.contains("bummer") {
-        return EmotionalState::Sad;
+        return SentimentAction{
+            show: "./data/sad.png".to_string()
+        };
     }
 
     let scores = analyzer.polarity_scores(sentence);
@@ -139,8 +124,12 @@ fn get_emotional_state(
     let neutral = scores.get("neu").unwrap_or(&0.0);
 
     if positive < negative && neutral < negative {
-        return EmotionalState::Mad;
+        return SentimentAction {
+            show: "./data/mad.png".to_string()
+        };
     }
 
-    EmotionalState::Neutral
+    SentimentAction {
+        show: "./data/neutral.png".to_string()
+    }
 }
