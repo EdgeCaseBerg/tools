@@ -15,6 +15,7 @@ use rules::load_from_file;
 use rules::SentimentAction;
 use rules::SentimentRule;
 use rules::SentimentField;
+use rules::Relation;
 
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
@@ -133,21 +134,37 @@ fn get_action_for_sentiment(
             }
         }
         
+        if let Some(relations) = &condition.polarity_relations {
+            let relation_is_true = relations.iter().find(|&relation| {
+                let left = match relation.left {
+                    SentimentField::Positive => positive,
+                    SentimentField::Negative => negative,
+                    SentimentField::Neutral => neutral 
+                };
+                let right = match relation.right {
+                    SentimentField::Positive => positive,
+                    SentimentField::Negative => negative,
+                    SentimentField::Neutral => neutral 
+                };
 
-        // &condition.polarity_relations
+                match &relation.relation {
+                    Relation::GT => left > right,
+                    Relation::LT => left < right,
+                    Relation::EQ => left == right,
+                }
+            }).is_some();
+            if relation_is_true {
+                return true;
+            }
+        }
 
         false
     });
 
-    println!("{:?}", maybe_action);
-
-    if positive < negative && neutral < negative {
-        return SentimentAction {
-            show: "./data/mad.png".to_string()
-        };
-    }
-
-    SentimentAction {
-        show: "./data/neutral.png".to_string()
+    match maybe_action {
+        Some(rule_based_action) => rule_based_action.action.clone(),
+        None => SentimentAction {
+            show: "./data/neutral.png".to_string()
+        }
     }
 }

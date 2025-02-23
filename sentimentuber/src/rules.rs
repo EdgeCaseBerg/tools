@@ -11,7 +11,7 @@ use std::path::PathBuf;
 /// assert(p.is_ok());
 /// assert_eq(p.unwrap(), SentimentAction { show: "./data/pic.png" })
 /// ```
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SentimentAction {
 	pub show: String
 }
@@ -43,9 +43,9 @@ pub enum Relation {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PolarityRelation {
-	relation: Relation,
-	left: SentimentField,
-	right: SentimentField
+	pub relation: Relation,
+	pub left: SentimentField,
+	pub right: SentimentField
 }
 
 #[derive(Debug, Serialize, Deserialize)]
