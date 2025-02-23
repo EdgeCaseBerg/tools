@@ -99,7 +99,7 @@ fn get_data_from_file(path: &Path) -> String {
 fn get_action_for_sentiment(
     sentence: &str,
     analyzer: &vader_sentiment::SentimentIntensityAnalyzer,
-    current_rules: &Vec<SentimentRule>
+    current_rules: &[SentimentRule]
 ) -> SentimentAction {
     let scores = analyzer.polarity_scores(sentence);
     // we'll tweak these later once we know more about the library. 
@@ -111,9 +111,9 @@ fn get_action_for_sentiment(
         let condition = &rule.condition;
         // fix this up so it doesn't immediately return
         if let Some(words) = &condition.contains_words {
-            let contains_words = words.iter().find(|word| {
-                sentence.contains(*word)
-            }).is_some();
+            let contains_words = words.iter().any(|word| {
+                sentence.contains(word)
+            });
             if contains_words {
                 return true;
             }
@@ -121,21 +121,21 @@ fn get_action_for_sentiment(
 
         
         if let Some(ranges) = &condition.polarity_ranges {
-            let is_in_range = ranges.iter().find(|&range| {
+            let is_in_range = ranges.iter().any(|range| {
                 let field = match &range.field {
                     SentimentField::Positive => positive,
                     SentimentField::Negative => negative,
                     SentimentField::Neutral => neutral 
                 };
                 range.low <= *field && *field <= range.high
-            }).is_some();
+            });
             if is_in_range {
                 return true;
             }
         }
         
         if let Some(relations) = &condition.polarity_relations {
-            let relation_is_true = relations.iter().find(|&relation| {
+            let relation_is_true = relations.iter().any(|relation| {
                 let left = match relation.left {
                     SentimentField::Positive => positive,
                     SentimentField::Negative => negative,
@@ -152,7 +152,7 @@ fn get_action_for_sentiment(
                     Relation::LT => left < right,
                     Relation::EQ => left == right,
                 }
-            }).is_some();
+            });
             if relation_is_true {
                 return true;
             }
