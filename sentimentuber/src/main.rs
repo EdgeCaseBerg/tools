@@ -14,8 +14,7 @@ mod rules;
 use rules::load_from_file;
 use rules::SentimentAction;
 use rules::SentimentRule;
-use rules::SentimentField;
-use rules::Relation;
+use rules::ContextPolarity;
 
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
@@ -38,7 +37,6 @@ fn main() -> anyhow::Result<()> {
         )
     });
 
-    println!("{:?}", rules);
     let obs_control = OBSController::new(&config)?;
     let (obs_sender, obs_receiver) = mpsc::channel::<String>();
     thread::spawn(move || {
@@ -91,66 +89,8 @@ fn get_data_from_file(path: &Path) -> String {
     fs::read_to_string(path).expect("could not get text data from file shared with localvocal")
 }
 
-/// Returns None if no rule defined, Some(T|F) for if there was a match otherwise
-fn context_contains_words(rule: &SentimentRule, sentence: &str) -> Option<bool> {
-    let condition = &rule.condition;
-    if let Some(words) = &condition.contains_words {
-        let contains_words = words.iter().any(|word| {
-            sentence.contains(word)
-        });
-        return Some(contains_words);
-    }
-    None
-}
-
-struct ContextPolarity {
-    positive: f64,
-    negative: f64,
-    neutral: f64
-}
-
-impl ContextPolarity {
-    fn for_field(&self, field: &SentimentField) -> f64 {
-         match field {
-            SentimentField::Positive => self.positive,
-            SentimentField::Negative => self.negative,
-            SentimentField::Neutral => self.neutral ,
-        }
-    }
-}
-
-fn context_in_polarity_range(rule: &SentimentRule, polarity: &ContextPolarity) -> Option<bool> {
-    let condition = &rule.condition;
-    if let Some(ranges) = &condition.polarity_ranges {
-        let is_in_range = ranges.iter().all(|range| {
-            let field = polarity.for_field(&range.field);
-            range.low <= field && field <= range.high
-        });
-        return Some(is_in_range)
-    }
-    None
-}
-
-fn context_has_polarity_relations(rule: &SentimentRule, polarity: &ContextPolarity) -> Option<bool> {
-    let condition = &rule.condition;
-    if let Some(relations) = &condition.polarity_relations {
-        let relation_is_true = relations.iter().all(|relation| {
-            let left = polarity.for_field(&relation.left);
-            let right = polarity.for_field(&relation.right);
-            match &relation.relation {
-                Relation::GT => left > right,
-                Relation::LT => left < right,
-                Relation::EQ => left == right,
-            }
-        });
-        return Some(relation_is_true);
-    }
-    None
-}
-
 fn get_context_polarity(sentence: &str, analyzer: &vader_sentiment::SentimentIntensityAnalyzer) -> ContextPolarity {
     let scores = analyzer.polarity_scores(sentence);
-    // we'll tweak these later once we know more about the library. 
     let positive = scores.get("pos").unwrap_or(&0.0);
     let negative = scores.get("neg").unwrap_or(&0.0);
     let neutral = scores.get("neu").unwrap_or(&0.0);
@@ -169,30 +109,7 @@ fn get_action_for_sentiment(
     current_rules: &[SentimentRule]
 ) -> SentimentAction {
     let maybe_action = current_rules.iter().find(|&rule| {
-        let maybe_contextual_word_match = context_contains_words(rule, sentence);
-        if let Some(is_word_matched) = maybe_contextual_word_match {
-            // Early return until we have a need to support multiple matches
-            // across rule types.
-            if is_word_matched {
-                return true;
-            }
-        }
-
-        let maybe_polarity_in_range = context_in_polarity_range(rule, polarity);
-        if let Some(is_in_range) = maybe_polarity_in_range {
-            if is_in_range {
-                return true;
-            }
-        }
-        
-        let maybe_polarity_relation_applies = context_has_polarity_relations(rule, polarity);
-        if let Some(relation_is_true) = maybe_polarity_relation_applies {
-            if relation_is_true {
-                return true;
-            }
-        }
-
-        false
+        return rule.applies_to(sentence, polarity);
     });
 
     match maybe_action {
