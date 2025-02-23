@@ -179,7 +179,56 @@ mod tests {
 		let result = serde_json::to_string(&range);
 		assert!(result.is_ok());
 		let string = result.unwrap();
-		println!("{}", string);
 		assert_eq!(string,  "{\"relation\":\"LT\",\"left\":\"Positive\",\"right\":\"Negative\"}");
+	}
+
+	#[test]
+	fn rule_is_only_true_if_all_conditions_match() {
+		let rule = SentimentRule {
+			priority: 0,
+			action: SentimentAction {
+				show: String::new()
+			},
+			condition: SentimentCondition {
+				contains_words: Some(vec![
+					"word".to_string(), 
+					"yay".to_string()
+				]),
+				polarity_ranges: Some(vec![
+					PolarityRange {
+						low: 0.5,
+						high: 0.75,
+						field: SentimentField::Positive					
+					},
+					PolarityRange {
+						low: 0.0,
+						high: 0.25,
+						field: SentimentField::Negative					
+					}
+				]),
+				polarity_relations: None
+			}
+		};
+
+		let polarity1 = ContextPolarity {
+			positive: 0.0,
+			negative: 0.9,
+			neutral: 0.0,
+		};
+
+		let polarity2 = ContextPolarity {
+			positive: 0.6,
+			negative: 0.25,
+			neutral: 0.0,
+		};
+
+		let should_be_false = rule.applies_to("no match here", &polarity1);
+		assert_eq!(should_be_false, false);
+
+		let should_be_false = rule.applies_to("no match here", &polarity2);
+		assert_eq!(should_be_false, false);
+		
+		let should_be_true = rule.applies_to("word", &polarity2);
+		assert_eq!(should_be_true, true);
 	}
 }

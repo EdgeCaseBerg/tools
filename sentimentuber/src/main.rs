@@ -19,7 +19,6 @@ use rules::ContextPolarity;
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 use std::fs;
-use std::path::Path;
 use std::sync::mpsc;
 use std::time::Duration;
 use std::time::Instant;
@@ -60,7 +59,7 @@ fn main() -> anyhow::Result<()> {
     for res in receiver {
         match res {
             Ok(_) => {
-                let s = get_data_from_file(path);
+                let s = fs::read_to_string(path).expect("could not get text data from file shared with localvocal");
                 let mut current_context = String::new();
 
                 let right_now = Instant::now();
@@ -82,10 +81,6 @@ fn main() -> anyhow::Result<()> {
         };
     }
     Ok(())
-}
-
-fn get_data_from_file(path: &Path) -> String {
-    fs::read_to_string(path).expect("could not get text data from file shared with localvocal")
 }
 
 fn get_context_polarity(sentence: &str, analyzer: &vader_sentiment::SentimentIntensityAnalyzer) -> ContextPolarity {
