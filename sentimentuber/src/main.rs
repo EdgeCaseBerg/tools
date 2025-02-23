@@ -76,9 +76,8 @@ fn main() -> anyhow::Result<()> {
                      tuple.0.ge(&drop_time)
                 });
 
-                println!("{:?}", current_context);
-
-                let sentiment_action = get_action_for_sentiment(&current_context, &analyzer, &rules);
+                let polarity = get_context_polarity(&current_context, &analyzer);
+                let sentiment_action = get_action_for_sentiment(&current_context, &polarity, &rules);
                 let image_to_show = sentiment_action.show;
                 obs_sender.send(image_to_show.to_string()).unwrap();
             }
@@ -92,67 +91,102 @@ fn get_data_from_file(path: &Path) -> String {
     fs::read_to_string(path).expect("could not get text data from file shared with localvocal")
 }
 
-// TODO:
-// probably make this file based rather than compile code based to some extent
-// define things like keyword foo -> Bla and letting rules cascade would be good
-// not to mention we'll need to think about blinking or similar things one should do regularly.
-fn get_action_for_sentiment(
-    sentence: &str,
-    analyzer: &vader_sentiment::SentimentIntensityAnalyzer,
-    current_rules: &[SentimentRule]
-) -> SentimentAction {
+/// Returns None if no rule defined, Some(T|F) for if there was a match otherwise
+fn context_contains_words(rule: &SentimentRule, sentence: &str) -> Option<bool> {
+    let condition = &rule.condition;
+    if let Some(words) = &condition.contains_words {
+        let contains_words = words.iter().any(|word| {
+            sentence.contains(word)
+        });
+        return Some(contains_words);
+    }
+    None
+}
+
+struct ContextPolarity {
+    positive: f64,
+    negative: f64,
+    neutral: f64
+}
+
+impl ContextPolarity {
+    fn for_field(&self, field: &SentimentField) -> f64 {
+         match field {
+            SentimentField::Positive => self.positive,
+            SentimentField::Negative => self.negative,
+            SentimentField::Neutral => self.neutral ,
+        }
+    }
+}
+
+fn context_in_polarity_range(rule: &SentimentRule, polarity: &ContextPolarity) -> Option<bool> {
+    let condition = &rule.condition;
+    if let Some(ranges) = &condition.polarity_ranges {
+        let is_in_range = ranges.iter().all(|range| {
+            let field = polarity.for_field(&range.field);
+            range.low <= field && field <= range.high
+        });
+        return Some(is_in_range)
+    }
+    None
+}
+
+fn context_has_polarity_relations(rule: &SentimentRule, polarity: &ContextPolarity) -> Option<bool> {
+    let condition = &rule.condition;
+    if let Some(relations) = &condition.polarity_relations {
+        let relation_is_true = relations.iter().all(|relation| {
+            let left = polarity.for_field(&relation.left);
+            let right = polarity.for_field(&relation.right);
+            match &relation.relation {
+                Relation::GT => left > right,
+                Relation::LT => left < right,
+                Relation::EQ => left == right,
+            }
+        });
+        return Some(relation_is_true);
+    }
+    None
+}
+
+fn get_context_polarity(sentence: &str, analyzer: &vader_sentiment::SentimentIntensityAnalyzer) -> ContextPolarity {
     let scores = analyzer.polarity_scores(sentence);
     // we'll tweak these later once we know more about the library. 
     let positive = scores.get("pos").unwrap_or(&0.0);
     let negative = scores.get("neg").unwrap_or(&0.0);
     let neutral = scores.get("neu").unwrap_or(&0.0);
 
+    ContextPolarity {
+        positive: *positive,
+        negative: *negative,
+        neutral: *neutral
+    }
+}
+
+// TODO for p3 post, discrete to continuous emotion to support blink etc?
+fn get_action_for_sentiment(
+    sentence: &str,
+    polarity: &ContextPolarity,
+    current_rules: &[SentimentRule]
+) -> SentimentAction {
     let maybe_action = current_rules.iter().find(|&rule| {
-        let condition = &rule.condition;
-        // fix this up so it doesn't immediately return
-        if let Some(words) = &condition.contains_words {
-            let contains_words = words.iter().any(|word| {
-                sentence.contains(word)
-            });
-            if contains_words {
+        let maybe_contextual_word_match = context_contains_words(rule, sentence);
+        if let Some(is_word_matched) = maybe_contextual_word_match {
+            // Early return until we have a need to support multiple matches
+            // across rule types.
+            if is_word_matched {
                 return true;
             }
         }
 
-        
-        if let Some(ranges) = &condition.polarity_ranges {
-            let is_in_range = ranges.iter().any(|range| {
-                let field = match &range.field {
-                    SentimentField::Positive => positive,
-                    SentimentField::Negative => negative,
-                    SentimentField::Neutral => neutral 
-                };
-                range.low <= *field && *field <= range.high
-            });
+        let maybe_polarity_in_range = context_in_polarity_range(rule, polarity);
+        if let Some(is_in_range) = maybe_polarity_in_range {
             if is_in_range {
                 return true;
             }
         }
         
-        if let Some(relations) = &condition.polarity_relations {
-            let relation_is_true = relations.iter().any(|relation| {
-                let left = match relation.left {
-                    SentimentField::Positive => positive,
-                    SentimentField::Negative => negative,
-                    SentimentField::Neutral => neutral 
-                };
-                let right = match relation.right {
-                    SentimentField::Positive => positive,
-                    SentimentField::Negative => negative,
-                    SentimentField::Neutral => neutral 
-                };
-
-                match &relation.relation {
-                    Relation::GT => left > right,
-                    Relation::LT => left < right,
-                    Relation::EQ => left == right,
-                }
-            });
+        let maybe_polarity_relation_applies = context_has_polarity_relations(rule, polarity);
+        if let Some(relation_is_true) = maybe_polarity_relation_applies {
             if relation_is_true {
                 return true;
             }
