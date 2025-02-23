@@ -78,6 +78,7 @@ pub fn load_from_file(path: &PathBuf) -> Result<Vec<SentimentRule>, Box<dyn Erro
 		!unvalidated_rule.condition.is_empty()
 	}).collect();
 	valid_rules.sort_by_key(|rule| rule.priority);
+	valid_rules.reverse();
 	Ok(valid_rules)
 }
 
