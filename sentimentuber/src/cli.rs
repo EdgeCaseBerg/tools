@@ -34,6 +34,10 @@ pub struct Config {
     #[arg(short = 's', long = "source_name", default_value = "Image")]
     pub obs_source_name: String,
 
+    /// Name of the Scene in OBS that contains the image source
+    #[arg(short = 'c', long = "scene_name", default_value = "SentimentTuber")]
+    pub obs_scene_name: String,
+
     /// Milliseconds to aggregate events from the local file system for changes to the transcript file
     #[arg(short = 'd',  long = "debounce_milliseconds", default_value_t = 50)]
     pub event_debouncing_duration_ms: u64,

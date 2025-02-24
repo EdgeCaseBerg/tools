@@ -31,7 +31,8 @@ impl OBSController {
 	    let port = config.obs_port;
 	    let client = runtime.block_on(Client::connect(ip, port, Some(password)))?;
 	    let image_source_name = config.obs_source_name.clone();
-	    let image_source_id = runtime.block_on(get_image_scene_item(&client, &image_source_name))?;
+        let image_scene_name = config.obs_scene_name.clone();
+	    let image_source_id = runtime.block_on(get_image_scene_item(&client, &image_source_name, &image_scene_name))?;
 
 		Ok(OBSController {
 			client,
@@ -48,12 +49,12 @@ impl OBSController {
 
 }
 
-async fn get_image_scene_item(client: &Client, image_source_name: &str) -> Result<SourceId, obws::error::Error> {
+async fn get_image_scene_item(client: &Client, image_source_name: &str, image_scene_name: &str) -> Result<SourceId, obws::error::Error> {
     let scenes_struct = client.scenes().list().await?;
     let test_scene = scenes_struct
         .scenes
         .iter()
-        .find(|scene| scene.id.name.contains("SentimentTuber")) //TODO deal with this
+        .find(|scene| scene.id.name.contains(image_scene_name))
         .expect("Could not find OBS scene by name");
 
     let items_in_scene = client
