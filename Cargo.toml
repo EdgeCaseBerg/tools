@@ -1,7 +1,7 @@
 [workspace]
 
 members = [
-	"nav-update", "sentimentuber",
+	"nav-update", "sentimentuber","sentiment-cli"
 ]
 
 resolver = "2"

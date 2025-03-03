@@ -983,6 +983,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "sentiment-cli"
+version = "0.0.0"
+dependencies = [
+ "vader_sentiment",
+]
+
+[[package]]
 name = "sentimentuber"
 version = "0.1.0"
 dependencies = [
