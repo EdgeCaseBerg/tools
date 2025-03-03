@@ -13,7 +13,8 @@ where
     text_context: VecDeque<(Instant, String)>,
     current_context: String,
     rules: Vec<SentimentRule>,
-    polarity_closure: PolarityClosure
+    polarity_closure: PolarityClosure,
+    context_retention_seconds: u64,
 }
 
 impl<PolarityClosure> SentimentEngine<PolarityClosure>
@@ -25,13 +26,14 @@ where
             text_context: VecDeque::new(),
             current_context: String::new(),
             rules: Vec::new(),
-            polarity_closure
+            polarity_closure,
+            context_retention_seconds: 10
         }
     }
 
     pub fn add_context(&mut self, new_content: String) {
         let right_now = Instant::now();
-        let drop_time = right_now - Duration::from_secs(10); // TODO make configurable
+        let drop_time = right_now - Duration::from_secs(self.context_retention_seconds);
         let mut current_context = String::new();
         self.text_context.push_back((right_now, new_content));
         self.text_context.retain(|tuple| {
@@ -40,11 +42,15 @@ where
              }
              tuple.0.ge(&drop_time)
         });
-        self.current_context = current_context;
+        self.current_context = current_context.to_lowercase();
     }
 
     pub fn set_rules(&mut self, rules: Vec<SentimentRule>) {
         self.rules = rules;
+    }
+
+    pub fn set_context_duration(&mut self, seconds: u64) {
+    	self.context_retention_seconds = seconds;
     }
 
     fn get_polarity(&self) -> ContextPolarity {

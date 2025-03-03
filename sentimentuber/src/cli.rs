@@ -41,6 +41,10 @@ pub struct Config {
     /// Milliseconds to aggregate events from the local file system for changes to the transcript file
     #[arg(short = 'd',  long = "debounce_milliseconds", default_value_t = 50)]
     pub event_debouncing_duration_ms: u64,
+
+    /// Seconds to retain context in text buffer.
+    #[arg(short = 't',  long = "context_retention_seconds", default_value_t = 10)]
+    pub context_retention_seconds: u64,
 }
 
 impl Config {

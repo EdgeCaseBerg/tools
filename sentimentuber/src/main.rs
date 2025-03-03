@@ -48,6 +48,7 @@ fn main() -> anyhow::Result<()> {
     let mut polarity_engine = SentimentEngine::new(|sentence| {
         get_context_polarity(sentence, &analyzer)
     });
+    polarity_engine.set_context_duration(config.context_retention_seconds);
     polarity_engine.set_rules(rules);
 
     let (sender, receiver) = mpsc::channel();
