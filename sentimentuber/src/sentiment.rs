@@ -65,7 +65,7 @@ where
         match maybe_action {
             Some(rule_based_action) => rule_based_action.action.clone(),
             None => SentimentAction {
-                show: "./data/neutral.png".to_string()
+                show: "./data/zachan/za-chan-chibi-positive.png".to_string()
             }
         }
     }
