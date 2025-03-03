@@ -15,19 +15,21 @@ where
     rules: Vec<SentimentRule>,
     polarity_closure: PolarityClosure,
     context_retention_seconds: u64,
+    default_action: SentimentAction
 }
 
 impl<PolarityClosure> SentimentEngine<PolarityClosure>
 where
     PolarityClosure: Fn(&str) -> ContextPolarity
 {
-    pub fn new(polarity_closure: PolarityClosure) -> Self {
+    pub fn new(default_action: SentimentAction, polarity_closure: PolarityClosure) -> Self {
         SentimentEngine {
             text_context: VecDeque::new(),
             current_context: String::new(),
             rules: Vec::new(),
             polarity_closure,
-            context_retention_seconds: 10
+            context_retention_seconds: 10,
+            default_action
         }
     }
 
@@ -64,9 +66,7 @@ where
         });
         match maybe_action {
             Some(rule_based_action) => rule_based_action.action.clone(),
-            None => SentimentAction {
-                show: "./data/zachan/za-chan-chibi-positive.png".to_string()
-            }
+            None => self.default_action.clone()
         }
     }
 }

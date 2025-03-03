@@ -38,6 +38,10 @@ pub struct Config {
     #[arg(short = 'c', long = "scene_name", default_value = "SentimentTuber")]
     pub obs_scene_name: String,
 
+    /// Default show action for the sentiment if no rule matches
+    #[arg(short = 'a', long = "action_default")]
+    pub default_action: String,
+
     /// Milliseconds to aggregate events from the local file system for changes to the transcript file
     #[arg(short = 'd',  long = "debounce_milliseconds", default_value_t = 50)]
     pub event_debouncing_duration_ms: u64,

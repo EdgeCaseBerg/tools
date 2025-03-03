@@ -45,7 +45,10 @@ fn main() -> anyhow::Result<()> {
     });
 
     let analyzer = vader_sentiment::SentimentIntensityAnalyzer::new();
-    let mut polarity_engine = SentimentEngine::new(|sentence| {
+    let default_action = SentimentAction {
+        show: config.default_action.clone()
+    };
+    let mut polarity_engine = SentimentEngine::new(default_action, |sentence| {
         get_context_polarity(sentence, &analyzer)
     });
     polarity_engine.set_context_duration(config.context_retention_seconds);
