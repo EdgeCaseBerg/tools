@@ -10,7 +10,6 @@ fn main() -> io::Result<()> {
             break;
         }
         print_sentiment(&buffer, &analyzer);
-        println!("{:?}", buffer);
         buffer.clear();
     }
     Ok(())
