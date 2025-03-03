@@ -2,7 +2,7 @@
 	{
 		"priority": 0,
 		"action": {
-			"show": "./data/neutral.png"
+			"show": "./data/zachan/za-chan-chibi-neutral.png"
 		},
 		"condition": {
 			"polarity_ranges": [
@@ -21,54 +21,419 @@
 					"high": 1,
 					"field": "Negative"
 				}
+			],
+			"polarity_relations": [
+				{
+					"left": "Positive",
+					"relation": "LT",
+					"right": "Neutral"
+				}
 			]
 		}
 	},
 	{
-		"priority": 2,
+		"priority": 0,
 		"action": {
-			"show": "./data/thumbsup.png"
+			"show": "./data/zachan/za-chan-chibi-neutral-focus.png"
 		},
 		"condition": {
-			"contains_words": ["good job"]
-		}
-	},
-	{
-		"priority": 2,
-		"action": {
-			"show": "./data/promise.png"
-		},
-		"condition": {
-			"contains_words": ["promise"]
-		}
-	},
-	{
-		"priority": 2,
-		"action": {
-			"show": "./data/smug.png"
-		},
-		"condition": {
+			"polarity_ranges": [
+				{
+					"low": 0,
+					"high": 1,
+					"field": "Neutral"
+				},
+				{
+					"low": 0,
+					"high": 1,
+					"field": "Positive"
+				},
+				{
+					"low": 0,
+					"high": 1,
+					"field": "Negative"
+				}
+			],
+			"polarity_relations": [
+				{
+					"left": "Positive",
+					"relation": "LT",
+					"right": "Neutral"
+				}
+			],
 			"contains_words": [
-				"I'm the best",
-				"I am the best"
+				"focused",
+				"focus",
+				"there we go",
+				"alrighty",
+				"lets see here",
+				"let's see here"
 			]
 		}
 	},
 	{
-		"priority": 2,
+		"priority": 0,
 		"action": {
-			"show": "./data/sad.png"
+			"show": "./data/zachan/za-chan-chibi-positive.png"
 		},
 		"condition": {
-			"contains_words": [
-				"bummer"
+			"polarity_relations": [
+				{
+					"left": "Positive",
+					"relation": "GT",
+					"right": "Neutral"
+				}
+			]
+		}
+	},
+	{
+		"priority": 0,
+		"action": {
+			"show": "./data/zachan/za-chan-chibi-small-frown.png"
+		},
+		"condition": {
+			"polarity_relations": [
+				{
+					"left": "Negative",
+					"relation": "GT",
+					"right": "Neutral"
+				},
+				{
+					"left": "Negative",
+					"relation": "GT",
+					"right": "Positive"
+				}
 			]
 		}
 	},
 	{
 		"priority": 1,
 		"action": {
-			"show": "./data/mad.png"
+			"show": "./data/zachan/za-chan-chibi-yell.png"
+		},
+		"condition": {
+			"polarity_ranges": [
+				{
+					"low": 0.8,
+					"high": 1,
+					"field": "Negative"
+				}
+			],
+			"polarity_relations": [
+				{
+					"left": "Positive",
+					"relation": "LT",
+					"right": "Negative"
+				},
+				{
+					"left": "Neutral",
+					"relation": "LT",
+					"right": "Negative"
+				}
+			]
+		}
+	},
+	{
+		"priority": 4,
+		"action": {
+			"show": "./data/zachan/za-chan-chibi-angry.png"
+		},
+		"condition": {
+			"contains_words": [
+				"what have we here",
+				"is that a bot",
+				"someone wants to die",
+				"someone wants a ban"
+			]
+		}
+	},
+	{
+		"priority": 5,
+		"action": {
+			"show": "./data/zachan/za-chan-chibi-banning.png"
+		},
+		"condition": {
+			"contains_words": [
+				"ban them",
+				"band hammer",
+				"bayon hammer",
+				"bamin",
+				"banning",
+				"time to say goodbye"
+			]
+		}
+	},
+	{
+		"priority": 5,
+		"action": {
+			"show": "./data/zachan/za-chan-chibi-yell.png"
+		},
+		"condition": {
+			"contains_words": [
+				"oh my god",
+				"oh god",
+				"aw come on",
+				"i'll come on"
+			]
+		}
+	},
+	{
+		"priority": 1,
+		"action": {
+			"show": "./data/zachan/za-chan-chibi-blank-focus.png"
+		},
+		"condition": {
+			"contains_words": [
+				"oh dang",
+				"oh damn",
+				"hold on a minute",
+				"wait a second",
+				"uhm"
+			],
+			"polarity_ranges": [
+				{
+					"low": 0.99,
+					"high": 1.0,
+					"field": "Neutral"
+				},
+				{
+					"low": 0,
+					"high": 0.01,
+					"field": "Positive"
+				},
+				{
+					"low": 0,
+					"high": 0.01,
+					"field": "Negative"
+				}
+			]
+		}
+	},
+	{
+		"priority": 1,
+		"action": {
+			"show": "./data/zachan/za-chan-chibi-blank-happy.png"
+		},
+		"condition": {
+			"contains_words": [
+				"oh dang",
+				"oh boy"
+			],
+			"polarity_ranges": [
+				{
+					"low": 0.99,
+					"high": 1.0,
+					"field": "Neutral"
+				},
+				{
+					"low": 0,
+					"high": 0.01,
+					"field": "Positive"
+				},
+				{
+					"low": 0,
+					"high": 0.01,
+					"field": "Negative"
+				}
+			]
+		}
+	},
+	{
+		"priority": 2,
+		"action": {
+			"show": "./data/zachan/za-chan-chibi-blank-hungry.png"
+		},
+		"condition": {
+			"contains_words": [
+				"that looks so good",
+				"now I'm hungry",
+				"look at this food",
+				"look at that food",
+				"food",
+				"hunger",
+				"hungry",
+				"ah, that looks so good"
+			]
+		}
+	},
+	{
+		"priority": 2,
+		"action": {
+			"show": "./data/zachan/za-chan-chibi-blank-pout.png"
+		},
+		"condition": {
+			"contains_words": [
+				"could be worse"
+			],
+			"polarity_relations": [
+				{
+					"left": "Positive",
+					"relation": "LT",
+					"right": "Negative"
+				}
+			]
+		}
+	},
+	{
+		"priority": 2,
+		"action": {
+			"show": "./data/zachan/za-chan-chibi-pout.png"
+		},
+		"condition": {
+			"contains_words": [
+				"well that sucked",
+				"could be worse",
+				"its fine i guess",
+				"i guess"
+			]
+		}
+	},
+	{
+		"priority": 3,
+		"action": {
+			"show": "./data/zachan/za-chan-chibi-blank-sad.png"
+		},
+		"condition": {
+			"contains_words": [
+				"what the heck",
+				"man",
+				"i want to cry",
+				"lame",
+				"cry",
+				"upset"
+			],
+			"polarity_ranges": [
+				{
+					"low": 0.0,
+					"high": 0.3,
+					"field": "Neutral"
+				},
+				{
+					"low": 0.28,
+					"high": 0.35,
+					"field": "Positive"
+				},
+				{
+					"low": 0.5,
+					"high": 0.6,
+					"field": "Negative"
+				}
+			]
+		}
+	},
+	{
+		"priority": 1,
+		"action": {
+			"show": "./data/zachan/za-chan-chibi-blank-smug.png"
+		},
+		"condition": {
+			"contains_words": [
+				"smug",
+				"time to go",
+				"alright then",
+				"dang it",
+				"darn",
+				"damn",
+				"come on"
+			],
+			"polarity_relations": [
+				{
+					"left": "Positive",
+					"relation": "GT",
+					"right": "Negative"
+				},
+				{
+					"left": "Neutral",
+					"relation": "GT",
+					"right": "Negative"
+				}
+			],
+			"polarity_ranges": [
+				{
+					"low": 0.0,
+					"high": 0.4,
+					"field": "Neutral"
+				},
+				{
+					"low": 0.52,
+					"high": 0.85,
+					"field": "Positive"
+				}
+			]
+		}
+	},
+	{
+		"priority": 1,
+		"action": {
+			"show": "./data/zachan/za-chan-chibi-smug.png"
+		},
+		"condition": {
+			"polarity_relations": [
+				{
+					"left": "Positive",
+					"relation": "GT",
+					"right": "Negative"
+				},
+				{
+					"left": "Neutral",
+					"relation": "GT",
+					"right": "Negative"
+				}
+			],
+			"polarity_ranges": [
+				{
+					"low": 0.0,
+					"high": 0.4,
+					"field": "Neutral"
+				},
+				{
+					"low": 0.52,
+					"high": 0.85,
+					"field": "Positive"
+				}
+			]
+		}
+	},
+	{
+		"priority": 2,
+		"action": {
+			"show": "./data/zachan/za-chan-chibi-eyes-closed-tongue.png"
+		},
+		"condition": {
+			"polarity_relations": [
+				{
+					"left": "Positive",
+					"relation": "GT",
+					"right": "Negative"
+				},
+				{
+					"left": "Positive",
+					"relation": "GT",
+					"right": "Neutral"
+				}
+			],
+			"polarity_ranges": [
+				{
+					"low": 0.0,
+					"high": 0.2,
+					"field": "Neutral"
+				},
+				{
+					"low": 0.7,
+					"high": 1.0,
+					"field": "Positive"
+				}
+			],
+			"contains_words": [
+				"laughs",
+				"silly"
+			]
+		}
+	},
+	{
+		"priority": 1,
+		"action": {
+			"show": "./data/zachan/za-chan-chibi-blank-frown-sad.png"
 		},
 		"condition": {
 			"polarity_relations": [
@@ -82,6 +447,460 @@
 					"relation": "LT",
 					"right": "Negative"
 				}
+			],
+			"polarity_ranges": [
+				{
+					"low": 0.0,
+					"high": 0.2,
+					"field": "Neutral"
+				},
+				{
+					"low": 0.8,
+					"high": 1.0,
+					"field": "Negative"
+				}
+			]
+		}
+	},
+	{
+		"priority": 1,
+		"action": {
+			"show": "./data/zachan/za-chan-chibi-happy.png"
+		},
+		"condition": {
+			"polarity_relations": [
+				{
+					"left": "Positive",
+					"relation": "GT",
+					"right": "Negative"
+				},
+				{
+					"left": "Neutral",
+					"relation": "GT",
+					"right": "Negative"
+				},
+				{
+					"left": "Neutral",
+					"relation": "LT",
+					"right": "Positive"
+				}
+			],
+			"polarity_ranges": [
+				{
+					"low": 0.0,
+					"high": 0.001,
+					"field": "Neutral"
+				},
+				{
+					"low": 0.4,
+					"high": 1.0,
+					"field": "Positive"
+				},
+				{
+					"low": 0.0,
+					"high": 0.001,
+					"field": "Negative"
+				}
+			]
+		}
+	},
+	{
+		"priority": 2,
+		"action": {
+			"show": "./data/zachan/za-chan-chibi-tongue.png"
+		},
+		"condition": {
+			"contains_words": [
+				"so good",
+				"tasted",
+				"tasty",
+				"can't wait for more",
+				"give me"
+			],
+			"polarity_relations": [
+				{
+					"left": "Positive",
+					"relation": "GT",
+					"right": "Negative"
+				},
+				{
+					"left": "Neutral",
+					"relation": "GT",
+					"right": "Negative"
+				},
+				{
+					"left": "Neutral",
+					"relation": "LT",
+					"right": "Positive"
+				}
+			],
+			"polarity_ranges": [
+				{
+					"low": 0.0,
+					"high": 0.001,
+					"field": "Neutral"
+				},
+				{
+					"low": 0.4,
+					"high": 1.0,
+					"field": "Positive"
+				},
+				{
+					"low": 0.0,
+					"high": 0.001,
+					"field": "Negative"
+				}
+			]
+		}
+	},
+	{
+		"priority": 1,
+		"action": {
+			"show": "./data/zachan/za-chan-chibi-huh.png"
+		},
+		"condition": {
+			"polarity_relations": [
+				{
+					"left": "Positive",
+					"relation": "LT",
+					"right": "Negative"
+				},
+				{
+					"left": "Positive",
+					"relation": "LT",
+					"right": "Neutral"
+				}
+			],
+			"polarity_ranges": [
+				{
+					"low": 0.5,
+					"high": 1.0,
+					"field": "Neutral"
+				},
+				{
+					"low": 0.0,
+					"high": 0.1,
+					"field": "Positive"
+				},
+				{
+					"low": 0.0,
+					"high": 0.1,
+					"field": "Negative"
+				}
+			],
+			"contains_words": [
+				"huh",
+				"wait",
+				"what"
+			]
+		}
+	},
+	{
+		"priority": 1,
+		"action": {
+			"show": "./data/zachan/za-chan-chibi-surprise.png"
+		},
+		"condition": {
+			"polarity_relations": [
+				{
+					"left": "Negative",
+					"relation": "LT",
+					"right": "Neutral"
+				},
+				{
+					"left": "Positive",
+					"relation": "LT",
+					"right": "Neutral"
+				}
+			],
+			"polarity_ranges": [
+				{
+					"low": 0.8,
+					"high": 1.0,
+					"field": "Neutral"
+				}
+			],
+			"contains_words": [
+				"huh",
+				"wait",
+				"what",
+				"strange"
+			]
+		}
+	},
+	{
+		"priority": 1,
+		"action": {
+			"show": "./data/zachan/za-chan-chibi-mad-boo-boo.png"
+		},
+		"condition": {
+			"polarity_relations": [
+				{
+					"left": "Positive",
+					"relation": "LT",
+					"right": "Negative"
+				},
+				{
+					"left": "Negative",
+					"relation": "LT",
+					"right": "Neutral"
+				}
+			],
+			"polarity_ranges": [
+				{
+					"low": 0.0,
+					"high": 0.6,
+					"field": "Neutral"
+				},
+				{
+					"low": 0.0,
+					"high": 0.1,
+					"field": "Positive"
+				},
+				{
+					"low": 0.9,
+					"high": 1.0,
+					"field": "Negative"
+				}
+			],
+			"contains_words": [
+				"boo boo",
+				"worse",
+				"awful",
+				"welp",
+				"could have"
+			]
+		}
+	},
+	{
+		"priority": 1,
+		"action": {
+			"show": "./data/zachan/za-chan-chibi-negative-focus.png"
+		},
+		"condition": {
+			"polarity_relations": [
+				{
+					"left": "Positive",
+					"relation": "LT",
+					"right": "Negative"
+				},
+				{
+					"left": "Negative",
+					"relation": "GT",
+					"right": "Neutral"
+				}
+			],
+			"polarity_ranges": [
+				{
+					"low": 0.5,
+					"high": 0.8,
+					"field": "Neutral"
+				},
+				{
+					"low": 0.0,
+					"high": 0.3,
+					"field": "Positive"
+				},
+				{
+					"low": 0.0,
+					"high": 0.1,
+					"field": "Negative"
+				}
+			],
+			"contains_words": [
+				"lock in",
+				"need to lock",
+				"just like that",
+				"come on"
+			]
+		}
+	},
+	{
+		"priority": 2,
+		"action": {
+			"show": "./data/zachan/za-chan-chibi-nervous.png"
+		},
+		"condition": {
+			"polarity_relations": [
+				{
+					"left": "Positive",
+					"relation": "LT",
+					"right": "Negative"
+				},
+				{
+					"left": "Negative",
+					"relation": "GT",
+					"right": "Positive"
+				}
+			],
+			"polarity_ranges": [
+				{
+					"low": 0.2,
+					"high": 0.3,
+					"field": "Neutral"
+				},
+				{
+					"low": 0.3,
+					"high": 0.4,
+					"field": "Positive"
+				},
+				{
+					"low": 0.4,
+					"high": 0.5,
+					"field": "Negative"
+				}
+			],
+			"contains_words": [
+				"nervous",
+				"lets try this",
+				"maybe this will work",
+				"i'm not sure about this",
+				"not sure about that",
+				"laughs"
+			]
+		}
+	},
+	{
+		"priority": 2,
+		"action": {
+			"show": "./data/zachan/za-chan-chibi-nervous-tongue.png"
+		},
+		"condition": {
+			"polarity_relations": [
+				{
+					"left": "Positive",
+					"relation": "LT",
+					"right": "Neutral"
+				},
+				{
+					"left": "Negative",
+					"relation": "LT",
+					"right": "Neutral"
+				}
+			],
+			"polarity_ranges": [
+				{
+					"low": 0.2,
+					"high": 0.3,
+					"field": "Neutral"
+				},
+				{
+					"low": 0.3,
+					"high": 0.4,
+					"field": "Positive"
+				},
+				{
+					"low": 0.4,
+					"high": 0.5,
+					"field": "Negative"
+				}
+			],
+			"contains_words": [
+				"well I tried",
+				"lets try again",
+				"maybe it will work this time",
+				"what about now",
+				"oh boy",
+				"hahaha",
+				"hehehe",
+				"oops"
+			]
+		}
+	},
+	{
+		"priority": 2,
+		"action": {
+			"show": "./data/zachan/za-chan-chibi-positive-3-face.png"
+		},
+		"condition": {
+			"polarity_relations": [
+				{
+					"left": "Positive",
+					"relation": "LT",
+					"right": "Neutral"
+				}
+			],
+			"polarity_ranges": [
+				{
+					"low": 0.57,
+					"high": 0.78,
+					"field": "Neutral"
+				},
+				{
+					"low": 0.4,
+					"high": 0.45,
+					"field": "Positive"
+				},
+				{
+					"low": 0.0,
+					"high": 0.01,
+					"field": "Negative"
+				}
+			],
+			"contains_words": [
+				"three",
+				"we shall see",
+				"thats great",
+				"cat",
+				"neko",
+				"meow",
+				"nya",
+				"nifty",
+				"neat",
+				"definitely",
+				"for sure"
+			]
+		}
+	},
+	{
+		"priority": 3,
+		"action": {
+			"show": "./data/zachan/za-chan-chibi-positive-eyes-closed.png"
+		},
+		"condition": {
+			"polarity_relations": [
+				{
+					"left": "Positive",
+					"relation": "GT",
+					"right": "Neutral"
+				}
+			],
+			"polarity_ranges": [
+				{
+					"low": 0.31,
+					"high": 0.32,
+					"field": "Neutral"
+				},
+				{
+					"low": 0.6,
+					"high": 1.0,
+					"field": "Positive"
+				}
+			],
+			"contains_words": [
+				"laughs",
+				"well then",
+				"happy",
+				"glad"
+			]
+		}
+	},
+	{
+		"priority": 3,
+		"action": {
+			"show": "./data/zachan/za-chan-chibi-positive-eyes-closed.png"
+		},
+		"condition": {
+			"polarity_relations": [
+				{
+					"left": "Positive",
+					"relation": "GT",
+					"right": "Neutral"
+				}
+			],
+			"contains_words": [
+				"(laughs)",
+				"(laughing)"
 			]
 		}
 	}
