@@ -40,54 +40,75 @@ fn main() -> anyhow::Result<()> {
     let (obs_sender, obs_receiver) = mpsc::channel::<SentimentAction>();
     thread::spawn(move || {
         for image_to_show in obs_receiver {
-            obs_control.swap_image_to(&image_to_show.show).expect("OBS failed to swap images");
+            match obs_control.swap_image_to(&image_to_show.show) {
+                Ok(_) => {},
+                Err(e) => {
+                    eprintln!("OBS failed to swap images {e:?}");
+                }
+            }
         }
     });
 
-    let analyzer = vader_sentiment::SentimentIntensityAnalyzer::new();
-    let default_action = SentimentAction {
-        show: config.default_action.clone()
-    };
-    let mut polarity_engine = SentimentEngine::new(default_action, |sentence| {
-        get_context_polarity(sentence, &analyzer)
-    });
-    polarity_engine.set_context_duration(config.context_retention_seconds);
-    polarity_engine.set_rules(rules);
-
     let (sender, receiver) = mpsc::channel();
+    let (context_sender, context_receiver) = mpsc::channel();
     let debounce_milli = config.event_debouncing_duration_ms;
-    let mut debouncer = new_debouncer(Duration::from_millis(debounce_milli), sender.clone()).unwrap();
-    let path = config.input_text_file_path.as_path();
-    debouncer.watcher().watch(path, RecursiveMode::Recursive).unwrap();
-
+    
     // Tick every retention seconds to make sure we update the image even if we're not actively talking
+    let tick_sender = context_sender.clone();
     thread::spawn(move || {
         loop {
             let sleep_for_seconds = Duration::from_secs(config.context_retention_seconds);
             thread::sleep(sleep_for_seconds);
-            let _ = sender.send(Err(notify::Error::new(notify::ErrorKind::Generic("TickHack".to_string()))));
+            let _ = tick_sender.send(String::new());
+        }
+    });
+
+    // Setup polarity analyzer that will emit events to OBS sender
+    let analyzer = vader_sentiment::SentimentIntensityAnalyzer::new();
+    let default_action = SentimentAction {
+        show: config.default_action.clone()
+    };
+    let mut polarity_engine = SentimentEngine::new(default_action, move |sentence| {
+        get_context_polarity(sentence, &analyzer)
+    });
+    polarity_engine.set_context_duration(config.context_retention_seconds);
+    polarity_engine.set_rules(rules);
+    thread::spawn(move || {
+        for new_context in context_receiver {
+            polarity_engine.add_context(new_context);
+            let sentiment_action = polarity_engine.get_action();
+            if let Err(send_error) = obs_sender.send(sentiment_action) {
+                eprintln!("{:?}", send_error);
+            }
         }
     });
 
     // Blocks forever
+    let mut debouncer = new_debouncer(Duration::from_millis(debounce_milli), sender).unwrap();
+    let path = config.input_text_file_path.as_path();
+    debouncer.watcher().watch(path, RecursiveMode::Recursive).unwrap();
     for res in receiver {
-        match res {
-            Ok(_) => {
-                let new_context = fs::read_to_string(path).expect("could not get text data from file shared with localvocal");
-                polarity_engine.add_context(new_context);
-                let sentiment_action = polarity_engine.get_action();
-                obs_sender.send(sentiment_action).unwrap();
+        if let Err(error) = res {
+            eprintln!("Watch error {error:?}");
+            continue;
+        }
+
+        match fs::read_to_string(path) {
+            Err(file_error) => {
+                eprintln!("could not get text data from file shared with localvocal: {file_error:?}");
+                continue;
+            },
+            Ok(new_context) => {
+                if let Err(send_error) = context_sender.send(new_context) {
+                    eprintln!("{:?}", send_error);
+                }
             }
-            Err(e) => {
-                polarity_engine.add_context(String::new());
-                let sentiment_action = polarity_engine.get_action();
-                obs_sender.send(sentiment_action).unwrap();
-                eprintln!("watch error: {:?}", e);
-            }
-        };
+        }
     }
     Ok(())
 }
+
+
 
 fn get_context_polarity(sentence: &str, analyzer: &vader_sentiment::SentimentIntensityAnalyzer) -> ContextPolarity {
     let scores = analyzer.polarity_scores(sentence);
