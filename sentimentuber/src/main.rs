@@ -56,9 +56,18 @@ fn main() -> anyhow::Result<()> {
 
     let (sender, receiver) = mpsc::channel();
     let debounce_milli = config.event_debouncing_duration_ms;
-    let mut debouncer = new_debouncer(Duration::from_millis(debounce_milli), sender).unwrap();
+    let mut debouncer = new_debouncer(Duration::from_millis(debounce_milli), sender.clone()).unwrap();
     let path = config.input_text_file_path.as_path();
     debouncer.watcher().watch(path, RecursiveMode::Recursive).unwrap();
+
+    // Tick every retention seconds to make sure we update the image even if we're not actively talking
+    thread::spawn(move || {
+        loop {
+            let sleep_for_seconds = Duration::from_secs(config.context_retention_seconds);
+            thread::sleep(sleep_for_seconds);
+            let _ = sender.send(Err(notify::Error::new(notify::ErrorKind::Generic("TickHack".to_string()))));
+        }
+    });
 
     // Blocks forever
     for res in receiver {
@@ -70,6 +79,9 @@ fn main() -> anyhow::Result<()> {
                 obs_sender.send(sentiment_action).unwrap();
             }
             Err(e) => {
+                polarity_engine.add_context(String::new());
+                let sentiment_action = polarity_engine.get_action();
+                obs_sender.send(sentiment_action).unwrap();
                 eprintln!("watch error: {:?}", e);
             }
         };
