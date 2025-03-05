@@ -22,6 +22,7 @@ use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 use std::fs;
 use std::sync::mpsc;
+use std::sync::mpsc::Sender;
 use std::time::Duration;
 use std::thread;
 
@@ -36,32 +37,12 @@ fn main() -> anyhow::Result<()> {
         )
     });
 
-    let obs_control = OBSController::new(&config)?;
-    let (obs_sender, obs_receiver) = mpsc::channel::<SentimentAction>();
-    thread::spawn(move || {
-        for image_to_show in obs_receiver {
-            match obs_control.swap_image_to(&image_to_show.show) {
-                Ok(_) => {},
-                Err(e) => {
-                    eprintln!("OBS failed to swap images {e:?}");
-                }
-            }
-        }
-    });
-
+    let obs_sender = start_obs_controller_on_thread(&config)?;
     let (sender, receiver) = mpsc::channel();
     let (context_sender, context_receiver) = mpsc::channel();
     let debounce_milli = config.event_debouncing_duration_ms;
     
-    // Tick every retention seconds to make sure we update the image even if we're not actively talking
-    let tick_sender = context_sender.clone();
-    thread::spawn(move || {
-        loop {
-            let sleep_for_seconds = Duration::from_secs(config.context_retention_seconds);
-            thread::sleep(sleep_for_seconds);
-            let _ = tick_sender.send(String::new());
-        }
-    });
+    regularly_send_tick_with(context_sender.clone(), config.context_retention_seconds);
 
     // Setup polarity analyzer that will emit events to OBS sender
     let analyzer = vader_sentiment::SentimentIntensityAnalyzer::new();
@@ -121,4 +102,32 @@ fn get_context_polarity(sentence: &str, analyzer: &vader_sentiment::SentimentInt
         negative: *negative,
         neutral: *neutral
     }
+}
+
+fn start_obs_controller_on_thread(config: &Config) -> Result<Sender<SentimentAction>, obws::error::Error> {
+    let obs_control = OBSController::new(&config)?;
+    let (obs_sender, obs_receiver) = mpsc::channel::<SentimentAction>();
+    thread::spawn(move || {
+        for image_to_show in obs_receiver {
+            match obs_control.swap_image_to(&image_to_show.show) {
+                Ok(_) => {},
+                Err(e) => {
+                    eprintln!("OBS failed to swap images {e:?}");
+                }
+            }
+        }
+    });
+    Ok(obs_sender)
+}
+
+fn regularly_send_tick_with(sender: Sender<String>, every_t_seconds: u64) {
+    thread::spawn(move || {
+        loop {
+            let sleep_for_seconds = Duration::from_secs(every_t_seconds);
+            thread::sleep(sleep_for_seconds);
+            if let Err(send_error) = sender.send(String::new()) {
+                eprintln!("Error on sending tick {send_error:?}");
+            }
+        }
+    });
 }
