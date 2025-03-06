@@ -30,37 +30,11 @@ use std::thread;
 // TODO: Cite https://github.com/ckw017/vader-sentiment-rust?tab=readme-ov-file#citation-information
 fn main() -> anyhow::Result<()> {
     let config = Config::parse_env();
-    let obs_sender = start_obs_controller_on_thread(&config)?;
-    let (sender, receiver) = mpsc::channel();
     let (context_sender, context_receiver) = mpsc::channel();
-    let debounce_milli = config.event_debouncing_duration_ms;
-    
+    let obs_sender = start_obs_controller_on_thread(&config)?;
     regularly_send_tick_with(context_sender.clone(), config.context_retention_seconds);
     emit_action_on_sentiment(&config, context_receiver, obs_sender);
-
-    // Blocks forever
-    let mut debouncer = new_debouncer(Duration::from_millis(debounce_milli), sender).unwrap();
-    let path = config.input_text_file_path.as_path();
-    debouncer.watcher().watch(path, RecursiveMode::Recursive).unwrap();
-    for res in receiver {
-        if let Err(error) = res {
-            eprintln!("Watch error {error:?}");
-            continue;
-        }
-
-        match fs::read_to_string(path) {
-            Err(file_error) => {
-                eprintln!("could not get text data from file shared with localvocal: {file_error:?}");
-                continue;
-            },
-            Ok(new_context) => {
-                if let Err(send_error) = context_sender.send(new_context) {
-                    eprintln!("{:?}", send_error);
-                }
-            }
-        }
-    }
-    Ok(())
+    emit_file_contents_on_change_forever(&config, context_sender);
 }
 
 fn get_context_polarity(sentence: &str, analyzer: &vader_sentiment::SentimentIntensityAnalyzer) -> ContextPolarity {
@@ -131,4 +105,31 @@ fn emit_action_on_sentiment(config: &Config, context_receiver: Receiver<String>,
             }
         }
     });
+}
+
+fn emit_file_contents_on_change_forever(config: &Config, context_sender: Sender<String>) -> ! {
+    let (sender, receiver) = mpsc::channel();
+    let mut debouncer = new_debouncer(Duration::from_millis(config.event_debouncing_duration_ms), sender).unwrap();
+    let path = config.input_text_file_path.as_path();
+    debouncer.watcher().watch(path, RecursiveMode::Recursive).unwrap();
+    for res in receiver {
+        if let Err(error) = res {
+            eprintln!("Watch error {error:?}");
+            continue;
+        }
+
+        match fs::read_to_string(path) {
+            Err(file_error) => {
+                eprintln!("could not get text data from file shared with localvocal: {file_error:?}");
+                continue;
+            },
+            Ok(new_context) => {
+                if let Err(send_error) = context_sender.send(new_context) {
+                    eprintln!("{:?}", send_error);
+                }
+            }
+        }
+    }
+    // This method never returns because the loop against receiver blocks forever.
+    std::process::exit(1);
 }
