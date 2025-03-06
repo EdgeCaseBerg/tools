@@ -23,46 +23,20 @@ use notify_debouncer_mini::new_debouncer;
 use std::fs;
 use std::sync::mpsc;
 use std::sync::mpsc::Sender;
+use std::sync::mpsc::Receiver;
 use std::time::Duration;
 use std::thread;
 
 // TODO: Cite https://github.com/ckw017/vader-sentiment-rust?tab=readme-ov-file#citation-information
 fn main() -> anyhow::Result<()> {
     let config = Config::parse_env();
-    let rules = load_from_file(&config.rules_file).unwrap_or_else(|e| {
-        panic!(
-            "Could not load rules file [{0}] {1}", 
-            config.rules_file.to_string_lossy(),
-            e
-        )
-    });
-
     let obs_sender = start_obs_controller_on_thread(&config)?;
     let (sender, receiver) = mpsc::channel();
     let (context_sender, context_receiver) = mpsc::channel();
     let debounce_milli = config.event_debouncing_duration_ms;
     
     regularly_send_tick_with(context_sender.clone(), config.context_retention_seconds);
-
-    // Setup polarity analyzer that will emit events to OBS sender
-    let analyzer = vader_sentiment::SentimentIntensityAnalyzer::new();
-    let default_action = SentimentAction {
-        show: config.default_action.clone()
-    };
-    let mut polarity_engine = SentimentEngine::new(default_action, move |sentence| {
-        get_context_polarity(sentence, &analyzer)
-    });
-    polarity_engine.set_context_duration(config.context_retention_seconds);
-    polarity_engine.set_rules(rules);
-    thread::spawn(move || {
-        for new_context in context_receiver {
-            polarity_engine.add_context(new_context);
-            let sentiment_action = polarity_engine.get_action();
-            if let Err(send_error) = obs_sender.send(sentiment_action) {
-                eprintln!("{:?}", send_error);
-            }
-        }
-    });
+    emit_action_on_sentiment(&config, context_receiver, obs_sender);
 
     // Blocks forever
     let mut debouncer = new_debouncer(Duration::from_millis(debounce_milli), sender).unwrap();
@@ -88,8 +62,6 @@ fn main() -> anyhow::Result<()> {
     }
     Ok(())
 }
-
-
 
 fn get_context_polarity(sentence: &str, analyzer: &vader_sentiment::SentimentIntensityAnalyzer) -> ContextPolarity {
     let scores = analyzer.polarity_scores(sentence);
@@ -127,6 +99,35 @@ fn regularly_send_tick_with(sender: Sender<String>, every_t_seconds: u64) {
             thread::sleep(sleep_for_seconds);
             if let Err(send_error) = sender.send(String::new()) {
                 eprintln!("Error on sending tick {send_error:?}");
+            }
+        }
+    });
+}
+
+fn emit_action_on_sentiment(config: &Config, context_receiver: Receiver<String>, obs_sender: Sender<SentimentAction>) {
+    let rules = load_from_file(&config.rules_file).unwrap_or_else(|e| {
+        panic!(
+            "Could not load rules file [{0}] {1}", 
+            config.rules_file.to_string_lossy(),
+            e
+        )
+    });
+
+    let analyzer = vader_sentiment::SentimentIntensityAnalyzer::new();
+    let default_action = SentimentAction {
+        show: config.default_action.clone()
+    };
+    let mut polarity_engine = SentimentEngine::new(default_action, move |sentence| {
+        get_context_polarity(sentence, &analyzer)
+    });
+    polarity_engine.set_context_duration(config.context_retention_seconds);
+    polarity_engine.set_rules(rules);
+    thread::spawn(move || {
+        for new_context in context_receiver {
+            polarity_engine.add_context(new_context);
+            let sentiment_action = polarity_engine.get_action();
+            if let Err(send_error) = obs_sender.send(sentiment_action) {
+                eprintln!("{:?}", send_error);
             }
         }
     });
