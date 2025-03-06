@@ -46,8 +46,9 @@ impl OBSController {
 		self.runtime.block_on(future)?;
 		Ok(())
 	}
-
 }
+
+
 
 async fn get_image_scene_item(client: &Client, image_source_name: &str, image_scene_name: &str) -> Result<SourceId, obws::error::Error> {
     let scenes_struct = client.scenes().list().await?;
