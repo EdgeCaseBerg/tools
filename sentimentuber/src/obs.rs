@@ -46,11 +46,6 @@ impl OBSController {
 		self.runtime.block_on(future)?;
 		Ok(())
 	}
-
-    pub fn disconnect_obs(&mut self) {
-        let future = self.client.disconnect();
-        self.runtime.block_on(future);
-    }
 }
 
 

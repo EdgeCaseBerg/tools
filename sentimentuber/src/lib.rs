@@ -26,8 +26,6 @@ use std::sync::mpsc::Sender;
 use std::sync::mpsc::Receiver;
 use std::time::Duration;
 use std::thread;
-use ctrlc;
-use std::sync::mpsc::channel;
 
 pub fn get_context_polarity(sentence: &str, analyzer: &vader_sentiment::SentimentIntensityAnalyzer) -> ContextPolarity {
     let scores = analyzer.polarity_scores(sentence);
@@ -43,21 +41,10 @@ pub fn get_context_polarity(sentence: &str, analyzer: &vader_sentiment::Sentimen
 }
 
 pub fn start_obs_controller_on_thread(config: &Config) -> Result<Sender<SentimentAction>, obws::error::Error> {
-    let mut obs_control = OBSController::new(&config)?;
-    let (ctrlc_sender, ctrc_reciever) = channel();
-    ctrlc::set_handler(move || ctrlc_sender.send(())
-        .expect("Could not send signal on channel."))
-        .expect("Error setting Ctrl-C handler");
-
+    let obs_control = OBSController::new(&config)?;
     let (obs_sender, obs_receiver) = mpsc::channel::<SentimentAction>();
     thread::spawn(move || {
         for image_to_show in obs_receiver {
-            let ctrlc_was_pressed = ctrc_reciever.try_recv();
-            match ctrlc_was_pressed {
-                Ok(_) => obs_control.disconnect_obs(),
-                Err(_) => {},
-            }
-
             match obs_control.swap_image_to(&image_to_show.show) {
                 Ok(_) => {},
                 Err(e) => {
