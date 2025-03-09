@@ -435,7 +435,7 @@
 	{
 		"priority": 1,
 		"action": {
-			"show": "./data/zachan/za-chan-chibi-blank-frown-sad.png"
+			"show": "./data/zachan/za-chan-chibi-small-frown.png"
 		},
 		"condition": {
 			"polarity_relations": [
