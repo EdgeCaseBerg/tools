@@ -7,7 +7,7 @@
 use std::path::PathBuf;
 use clap::Parser;
 
-#[derive(Debug, Parser)]
+#[derive(Debug, Parser, Clone)]
 #[command(version, about, long_about = None)]
 pub struct Config {
     /// Path to localvocal (or similar) transcript file
