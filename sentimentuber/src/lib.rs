@@ -10,7 +10,7 @@ use cli::Config;
 mod obs;
 use obs::OBSController;
 
-mod rules;
+pub mod rules;
 use rules::load_from_file;
 use rules::ContextPolarity;
 use rules::SentimentAction;
@@ -26,6 +26,8 @@ use std::sync::mpsc::Sender;
 use std::sync::mpsc::Receiver;
 use std::time::Duration;
 use std::thread;
+use std::path::Path;
+use std::path::PathBuf;
 
 pub fn get_context_polarity(sentence: &str, analyzer: &vader_sentiment::SentimentIntensityAnalyzer) -> ContextPolarity {
     let scores = analyzer.polarity_scores(sentence);
@@ -98,29 +100,36 @@ pub fn emit_action_on_sentiment(config: &Config, context_receiver: Receiver<Stri
     });
 }
 
-pub fn emit_file_contents_on_change_forever(config: &Config, context_sender: Sender<String>) -> ! {
-    let (sender, receiver) = mpsc::channel();
-    let mut debouncer = new_debouncer(Duration::from_millis(config.event_debouncing_duration_ms), sender).unwrap();
-    let path = config.input_text_file_path.as_path();
-    debouncer.watcher().watch(path, RecursiveMode::Recursive).unwrap();
-    for res in receiver {
-        if let Err(error) = res {
-            eprintln!("Watch error {error:?}");
-            continue;
-        }
-
-        match fs::read_to_string(path) {
-            Err(file_error) => {
-                eprintln!("could not get text data from file shared with localvocal: {file_error:?}");
+pub fn emit_file_contents_on_change_forever(config: Config, context_sender: Sender<String>) {
+    thread::spawn(move || {
+        let (sender, receiver) = mpsc::channel();
+        let mut debouncer = new_debouncer(Duration::from_millis(config.event_debouncing_duration_ms), sender).unwrap();
+        let path = config.input_text_file_path.as_path();
+        debouncer.watcher().watch(path, RecursiveMode::Recursive).unwrap();
+        for res in receiver {
+            if let Err(error) = res {
+                eprintln!("Watch error {error:?}");
                 continue;
-            },
-            Ok(new_context) => {
-                if let Err(send_error) = context_sender.send(new_context) {
-                    eprintln!("{:?}", send_error);
+            }
+
+            match fs::read_to_string(path) {
+                Err(file_error) => {
+                    eprintln!("could not get text data from file shared with localvocal: {file_error:?}");
+                    continue;
+                },
+                Ok(new_context) => {
+                    if let Err(send_error) = context_sender.send(new_context) {
+                        eprintln!("{:?}", send_error);
+                    }
                 }
             }
         }
-    }
-    // This method never returns because the loop against receiver blocks forever.
-    std::process::exit(1);
+    });
+}
+
+
+pub fn get_full_path(relative_path: &str) -> Result<String, std::io::Error> {
+    let path = Path::new(relative_path);
+    let path_buf = Path::canonicalize(path)?;
+    Ok(path_buf.display().to_string())
 }
