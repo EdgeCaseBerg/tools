@@ -10,7 +10,7 @@ use cli::Config;
 mod obs;
 use obs::OBSController;
 
-pub mod rules;
+mod rules;
 use rules::load_from_file;
 use rules::ContextPolarity;
 use rules::SentimentAction;
@@ -69,7 +69,7 @@ pub fn regularly_send_tick_with(sender: Sender<String>, every_t_seconds: u64) {
 }
 
 // TODO: Cite https://github.com/ckw017/vader-sentiment-rust?tab=readme-ov-file#citation-information
-pub fn emit_action_on_sentiment(config: &Config, context_receiver: Receiver<String>, sender: Sender<SentimentAction>) {
+pub fn emit_action_on_sentiment(config: &Config, context_receiver: Receiver<String>, obs_sender: Sender<SentimentAction>) {
     let rules = load_from_file(&config.rules_file).unwrap_or_else(|e| {
         panic!(
             "Could not load rules file [{0}] {1}", 
@@ -91,8 +91,7 @@ pub fn emit_action_on_sentiment(config: &Config, context_receiver: Receiver<Stri
         for new_context in context_receiver {
             polarity_engine.add_context(new_context);
             let sentiment_action = polarity_engine.get_action();
-            println!("sending sentiment");
-            if let Err(send_error) = sender.send(sentiment_action) {
+            if let Err(send_error) = obs_sender.send(sentiment_action) {
                 eprintln!("{:?}", send_error);
             }
         }
