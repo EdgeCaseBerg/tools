@@ -18,6 +18,8 @@ use rules::SentimentAction;
 mod sentiment;
 use sentiment::SentimentEngine;
 
+pub mod gui;
+
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 use std::fs;
@@ -27,7 +29,6 @@ use std::sync::mpsc::Receiver;
 use std::time::Duration;
 use std::thread;
 use std::path::Path;
-use std::path::PathBuf;
 
 pub fn get_context_polarity(sentence: &str, analyzer: &vader_sentiment::SentimentIntensityAnalyzer) -> ContextPolarity {
     let scores = analyzer.polarity_scores(sentence);
