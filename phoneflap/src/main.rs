@@ -14,7 +14,7 @@ fn parse_dictionary(dictionary_file_path: &str) -> HashMap<String, PhonemeSet> {
         .lines()
         .map(decode)
         .filter(|line| !line.starts_with(";;;"))
-        .filter_map(|line| PhonemeSet::new(&line))
+        .filter_map(|line| PhonemeSet::from(&line))
         .map(|p| (p.word.clone(), p))
         .collect();
     definitions
@@ -36,7 +36,7 @@ struct PhonemeSet {
 }
 
 impl PhonemeSet {
-    fn new(raw_line: &str) -> Option<Self> {
+    fn from(raw_line: &str) -> Option<Self> {
         if !raw_line.contains("  ") {
             return None;
         }
@@ -54,7 +54,7 @@ impl PhonemeSet {
     fn parse_phoneme(raw_line_data: &str) -> Vec<Phoneme> {
         raw_line_data
             .split(" ")
-            .filter_map(Phoneme::new)
+            .filter_map(Phoneme::from)
             .collect()
     }
 }
@@ -67,8 +67,8 @@ struct Phoneme {
 
 impl Phoneme {
     /// expects AA or AA0, AA1, AA2 where AA is any phoneme of the 39.
-    fn new(phone_and_stress: &str) -> Option<Self> {
-        let stress = match phone_and_stress.chars().find(|&c| char::is_digit(c, 10)) {
+    fn from(phone_and_stress: &str) -> Option<Self> {
+        let stress = match phone_and_stress.chars().find(|&c| c.is_ascii_digit()) {
             None => LexicalStress::NoStress,
             Some(stress_char) => match stress_char {
                 '1' => LexicalStress::Primary,
@@ -82,7 +82,7 @@ impl Phoneme {
             .take_while(|c| !c.is_ascii_digit())
             .collect();
 
-        Phone::new(&raw_phone).map(|phone| {
+        Phone::from(&raw_phone).map(|phone| {
             Self {
                 phone,
                 stress,
@@ -135,7 +135,7 @@ enum Phone {
 }
 
 impl Phone {
-    fn new(str: &str) -> Option<Phone> {
+    fn from(str: &str) -> Option<Phone> {
         match str {
             "AA" => Some(Phone::AA),
             "AE" => Some(Phone::AE),
