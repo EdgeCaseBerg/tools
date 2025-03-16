@@ -25,8 +25,8 @@ fn decode(line: &[u8]) -> Cow<'_, str> {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PhonemeSet {
-    set: Vec<Phoneme>,
-    word: String,
+    pub set: Vec<Phoneme>,
+    pub word: String,
 }
 
 impl PhonemeSet {
@@ -55,12 +55,14 @@ impl PhonemeSet {
             .filter(|phoneme| phoneme.phone.contains_vowel())
             .count()
     }
+
+
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
-struct Phoneme {
-    phone: Phone,
-    stress: LexicalStress,
+pub struct Phoneme {
+    pub phone: Phone,
+    pub stress: LexicalStress,
 }
 
 impl Phoneme {
@@ -85,7 +87,7 @@ impl Phoneme {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Copy)]
-enum Phone {
+pub enum Phone {
     AA,
     AE,
     AH,
@@ -128,7 +130,7 @@ enum Phone {
 }
 
 impl Phone {
-    fn contains_vowel(&self) -> bool {
+    pub fn contains_vowel(&self) -> bool {
         match self {
             Self::AA => true,
             Self::AE => true,
@@ -149,7 +151,7 @@ impl Phone {
         }
     }
 
-    fn from(raw: &str) -> Option<Phone> {
+    pub fn from(raw: &str) -> Option<Phone> {
         match raw {
             "AA" => Some(Phone::AA),
             "AE" => Some(Phone::AE),
@@ -200,7 +202,7 @@ impl Phone {
 }
 
 #[derive(Debug, Clone, PartialOrd, PartialEq, Eq, Hash, Copy)]
-enum LexicalStress {
+pub enum LexicalStress {
     NoStress, // kind of want to use None but don't want to get confused!
     Primary,
     Secondary,
