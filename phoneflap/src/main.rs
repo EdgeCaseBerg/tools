@@ -11,12 +11,12 @@ fn main() {
     println!("{:?}", definition);
     println!("{:?}", definition.1.vowel_count());
 
-    let mut definitions_random = definitions.values();
+    let definitions_random = definitions.values();
 
-    let delay_between_frames = Duration::from_millis(25);
+    let delay_between_frames = Duration::from_millis(10);
 
     let mut face = SimpleFlaps::new();
-    let mut words = vec!["HELLO", "BLOG", "READERS", "I", "HOPE", "YOU'RE", "WELL"];
+    let words = vec!["HELLO", "BLOG", "READERS", "I", "HOPE", "YOU'RE", "ENJOYING", "THE", "BLOGOSPHERE"];
     let iter = words.into_iter().map(|word| {
         let p = definitions.get(word).unwrap();
         p
@@ -45,7 +45,7 @@ fn main() {
 
         match time_until_next_word.checked_sub(delay_between_frames) {
             None => {
-                time_until_next_word = Duration::from_millis(1000) + face.time_left_before_finished_speaking();  
+                time_until_next_word = Duration::from_millis(500) + face.time_left_before_finished_speaking();  
                 if let Some(phoneme_set) = definitions_random.next() {
                     now_saying = phoneme_set.word.clone();
                     face.speak(phoneme_set);
@@ -61,57 +61,21 @@ fn main() {
 
 enum SimpleFaceState {
     Neutral,
-    FlapOpen(Duration),
-    FlapClosed(Duration)
+    Flap(String, Duration), // Shape, Duration of shape
 }
 
 impl SimpleFaceState {
-
-    fn add_time(&self, additional_time: Duration) -> Self {
-        match self {
-            SimpleFaceState::Neutral => SimpleFaceState::Neutral,
-            SimpleFaceState::FlapOpen(previous) => SimpleFaceState::FlapOpen(*previous + additional_time),
-            SimpleFaceState::FlapClosed(previous) => SimpleFaceState::FlapClosed(*previous + additional_time),
-        }
-    }
-
     fn from(phoneme_set: &PhonemeSet) -> VecDeque<SimpleFaceState> {
         let states = VecDeque::new();
-        // THIS -> DH IH1 S
-        // 50 100 because consanant = 50, vowel collapsed duration until next vowel
-        // THIS'LL -> DH IS1 S AH0 L
-        // 50 100 100
-
-        let mut flip_flop = true;
-        let mut next_state = |tuple: (&Phoneme, Duration)| {
-            let (_, duration) = tuple; // potentialy we use the phoneme in the future
-            let face = if flip_flop {
-                SimpleFaceState::FlapOpen(duration)
-            } else {
-                SimpleFaceState::FlapClosed(duration)
-            };
-            flip_flop = !flip_flop;
-            face
-        };
-
         phoneme_set.set.iter().map(|phoneme| {
             (phoneme, Duration::from_millis(50))
         }).fold(states, |mut acc, phoneme_tuple| {
-            match acc.pop_back() {
-                None => acc.push_back(next_state(phoneme_tuple)),
-                Some(previous_state) => {
-                    if phoneme_tuple.0.phone.contains_vowel() {
-                        acc.push_back(previous_state);
-                        acc.push_back(next_state(phoneme_tuple));
-                    } else {
-                        let new_state = previous_state.add_time(phoneme_tuple.1);
-                        acc.push_back(new_state);
-                    }
-                }
-            };
+            acc.push_back({
+                let mouth = phoneme_tuple.0.phone.to_mouth_shape();
+                SimpleFaceState::Flap(mouth, phoneme_tuple.1)
+            });
             acc
         })
-        
     }
 }
 
@@ -129,31 +93,21 @@ impl SimpleFlaps {
     }
 
     fn display(&self) -> String {
-        match self.state {
-            SimpleFaceState::Neutral => "0 u 0",
-            SimpleFaceState::FlapClosed(_) => "0 - 0",
-            SimpleFaceState::FlapOpen(_) => "0 o 0",
-        }.to_string()
+        match &self.state {
+            SimpleFaceState::Neutral => "0 u 0".to_string(),
+            SimpleFaceState::Flap(mouth, _) => format!("0 {} 0", &mouth),
+        }
     }
 
     fn tick(&mut self, since_last_tick: Duration) {
-        match self.state {
+        match &self.state {
             SimpleFaceState::Neutral => self.next_state(),
-            SimpleFaceState::FlapOpen(time_left) => {
+            SimpleFaceState::Flap(mouth, time_left) => {
                 let new_time_left = time_left.checked_sub(since_last_tick);
                 match new_time_left {
                     None => self.next_state(),
                     Some(time_left) => {
-                        self.state = SimpleFaceState::FlapOpen(time_left);
-                    }
-                }
-            },
-            SimpleFaceState::FlapClosed(time_left) => {
-                let new_time_left = time_left.checked_sub(since_last_tick);
-                match new_time_left {
-                    None => self.next_state(),
-                    Some(time_left) => {
-                        self.state = SimpleFaceState::FlapClosed(time_left);
+                        self.state = SimpleFaceState::Flap(mouth.to_string(), time_left);
                     }
                 }
             }
@@ -178,22 +132,16 @@ impl SimpleFlaps {
     fn time_left_before_finished_speaking(&self) -> Duration {
         let mut time_left = match self.state {
             SimpleFaceState::Neutral => Duration::from_millis(0),
-            SimpleFaceState::FlapOpen(duration) => {
-                duration
-            },
-            SimpleFaceState::FlapClosed(duration) => {
+            SimpleFaceState::Flap(_, duration) => {
                 duration
             }
         };
         for message in &self.messages {
             match message {
                 SimpleFaceState::Neutral => {},
-                SimpleFaceState::FlapOpen(duration) => {
+                SimpleFaceState::Flap(_, duration) => {
                     time_left += *duration;
                 },
-                SimpleFaceState::FlapClosed(duration) => {
-                    time_left += *duration;
-                }
             }
         }
         time_left

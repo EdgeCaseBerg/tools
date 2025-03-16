@@ -151,6 +151,50 @@ impl Phone {
         }
     }
 
+    pub fn to_mouth_shape(&self) -> String {
+        match self {
+            Self::AA => "o",
+            Self::AE => "=",
+            Self::AH => "o",
+            Self::AO => ".",
+            Self::AW => "o",
+            Self::AY => "=",
+            Self::B => ".",
+            Self::CH => "=",
+            Self::D => "=",
+            Self::DH => "-",
+            Self::EH => "o",
+            Self::ER => ".",
+            Self::EY => "=",
+            Self::F => "n",
+            Self::G => "=",
+            Self::HH => "o",
+            Self::IH => "-",
+            Self::IY => "=",
+            Self::JH => "o",
+            Self::K => "o",
+            Self::L => "-",
+            Self::M => "-",
+            Self::N => "-",
+            Self::NG => "=",
+            Self::OW => "o",
+            Self::OY => ".",
+            Self::P => "o",
+            Self::R => "=",
+            Self::S => "o",
+            Self::SH => "=",
+            Self::T => "=",
+            Self::TH => ".",
+            Self::UH => "p",
+            Self::UW => "o",
+            Self::V => "v",
+            Self::W => "w",
+            Self::Y => "=",
+            Self::Z => "o",
+            Self::ZH => "=", 
+        }.to_string()
+    }
+
     pub fn from(raw: &str) -> Option<Phone> {
         match raw {
             "AA" => Some(Phone::AA),
