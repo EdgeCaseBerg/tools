@@ -55,8 +55,6 @@ impl PhonemeSet {
             .filter(|phoneme| phoneme.phone.contains_vowel())
             .count()
     }
-
-
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
@@ -191,8 +189,9 @@ impl Phone {
             Self::W => "w",
             Self::Y => "=",
             Self::Z => "o",
-            Self::ZH => "=", 
-        }.to_string()
+            Self::ZH => "=",
+        }
+        .to_string()
     }
 
     pub fn from(raw: &str) -> Option<Phone> {

@@ -1,9 +1,8 @@
 use phoneflap::*;
 
-use std::{thread, time};
 use std::collections::VecDeque;
+use std::{thread, time};
 use time::Duration;
-
 
 fn main() {
     let definitions = parse_dictionary("./data/cmudict-0.7b.txt");
@@ -16,14 +15,25 @@ fn main() {
     let delay_between_frames = Duration::from_millis(10);
 
     let mut face = SimpleFlaps::new();
-    let words = vec!["HELLO", "BLOG", "READERS", "I", "HOPE", "YOU'RE", "ENJOYING", "THE", "BLOGOSPHERE"];
+    let words = vec![
+        "HELLO",
+        "BLOG",
+        "READERS",
+        "I",
+        "HOPE",
+        "YOU'RE",
+        "ENJOYING",
+        "THE",
+        "BLOGOSPHERE",
+    ];
     let iter = words.into_iter().map(|word| {
         let p = definitions.get(word).unwrap();
         p
     });
     let mut definitions_random = iter.chain(definitions_random);
 
-    let mut time_until_next_word =  Duration::from_millis(1000) + face.time_left_before_finished_speaking();
+    let mut time_until_next_word =
+        Duration::from_millis(1000) + face.time_left_before_finished_speaking();
     let mut now_saying = String::new();
 
     let mut buffer = String::new();
@@ -33,10 +43,10 @@ fn main() {
         std::io::Write::flush(&mut std::io::stdout()).unwrap();
         thread::sleep(delay_between_frames);
         buffer.clear();
-        
+
         // Note: should _actually_ compute this delta.
         face.tick(delay_between_frames);
-        
+
         buffer.push_str(&face.display());
         buffer.push('\n');
         buffer.push_str("Now saying: ");
@@ -45,19 +55,19 @@ fn main() {
 
         match time_until_next_word.checked_sub(delay_between_frames) {
             None => {
-                time_until_next_word = Duration::from_millis(500) + face.time_left_before_finished_speaking();  
+                time_until_next_word =
+                    Duration::from_millis(500) + face.time_left_before_finished_speaking();
                 if let Some(phoneme_set) = definitions_random.next() {
                     now_saying = phoneme_set.word.clone();
                     face.speak(phoneme_set);
                 }
-            },
+            }
             Some(time_left) => {
                 time_until_next_word = time_left;
             }
         }
     }
 }
-
 
 enum SimpleFaceState {
     Neutral,
@@ -67,21 +77,23 @@ enum SimpleFaceState {
 impl SimpleFaceState {
     fn from(phoneme_set: &PhonemeSet) -> VecDeque<SimpleFaceState> {
         let states = VecDeque::new();
-        phoneme_set.set.iter().map(|phoneme| {
-            (phoneme, Duration::from_millis(50))
-        }).fold(states, |mut acc, phoneme_tuple| {
-            acc.push_back({
-                let mouth = phoneme_tuple.0.phone.to_mouth_shape();
-                SimpleFaceState::Flap(mouth, phoneme_tuple.1)
-            });
-            acc
-        })
+        phoneme_set
+            .set
+            .iter()
+            .map(|phoneme| (phoneme, Duration::from_millis(50)))
+            .fold(states, |mut acc, phoneme_tuple| {
+                acc.push_back({
+                    let mouth = phoneme_tuple.0.phone.to_mouth_shape();
+                    SimpleFaceState::Flap(mouth, phoneme_tuple.1)
+                });
+                acc
+            })
     }
 }
 
 struct SimpleFlaps {
     state: SimpleFaceState,
-    messages: VecDeque<SimpleFaceState>
+    messages: VecDeque<SimpleFaceState>,
 }
 
 impl SimpleFlaps {
@@ -132,19 +144,16 @@ impl SimpleFlaps {
     fn time_left_before_finished_speaking(&self) -> Duration {
         let mut time_left = match self.state {
             SimpleFaceState::Neutral => Duration::from_millis(0),
-            SimpleFaceState::Flap(_, duration) => {
-                duration
-            }
+            SimpleFaceState::Flap(_, duration) => duration,
         };
         for message in &self.messages {
             match message {
-                SimpleFaceState::Neutral => {},
+                SimpleFaceState::Neutral => {}
                 SimpleFaceState::Flap(_, duration) => {
                     time_left += *duration;
-                },
+                }
             }
         }
         time_left
     }
-
 }
