@@ -4,3 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+notify-rust = { version = "4.11.6", features = [] }
+notify = "8.0.0"
