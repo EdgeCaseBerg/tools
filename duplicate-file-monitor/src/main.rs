@@ -22,6 +22,22 @@ struct DuplicateDatabase {
     files_to_hash: HashMap<String, u64>
 }
 
+impl DuplicateDatabase {
+    fn add(&mut self, hash: u64, full_file_path: String) {
+        let entry = self.hash_to_files.entry(hash);
+        let existing_files = entry.or_default();
+        if !existing_files.contains(&full_file_path) {
+            existing_files.push(full_file_path.clone());
+        }
+
+        self.files_to_hash.entry(full_file_path).insert_entry(hash);
+    }
+
+    fn hash_already_exists(&self, hash: u64) -> bool {
+        self.hash_to_files.contains_key(&hash)
+    }
+}
+
 fn main() {
     // Testing for now, leave false.
     let use_home_dir = false;
@@ -30,11 +46,11 @@ fn main() {
     dupdb_initialize_hidden_folder(use_home_dir);
 
     // Load database
-    let database = dupdb_database_load_to_memory(use_home_dir);
+    let mut database = dupdb_database_load_to_memory(use_home_dir);
 
     // TODO: Read folder to watch from env instead of just .
     let folder_to_watch = Path::new(".");
-    dupdb_watch_forever(folder_to_watch, &database);
+    dupdb_watch_forever(folder_to_watch, &mut database);
 }
 
 fn dupdb_initialize_hidden_folder(use_home_dir: bool) {
@@ -83,7 +99,7 @@ fn dupdb_database_load_to_memory(use_home_dir: bool) -> DuplicateDatabase {
     rmp_serde::from_read(handle).expect("Could not deserialize DuplicateDatabase")
 }
 
-fn dupdb_watch_forever(watch_folder_path: &Path, dupdb_database_load_to_memory: &DuplicateDatabase) {
+fn dupdb_watch_forever(watch_folder_path: &Path, dupdb_database_load_to_memory: &mut DuplicateDatabase) {
     let (tx, rx) = mpsc::channel();
 
     let backend_config = notify::Config::default().with_poll_interval(Duration::from_millis(500));
