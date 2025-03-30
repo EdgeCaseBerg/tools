@@ -12,6 +12,8 @@ use std::sync::mpsc;
 use serde::{Serialize, Deserialize};
 use rmp_serde::{self, Serializer};
 
+use notify_rust::Notification;
+
 const NAME_OF_HIDDEN_FOLDER: &str = ".dupdb";
 const NAME_OF_HASH_FILE: &str = "index.dat";
 const DEBUGGING_LOCAL: bool = true;
@@ -178,9 +180,33 @@ fn dupdb_update_hashes_for(paths: Vec<PathBuf>, duplicate_database: &mut Duplica
     };
 
     if db_dirty {
-        println!("{:?}", duplicate_database);
+        if !duplicates_in_aggregate.is_empty() {
+            dupdb_notifications_send(duplicates_in_aggregate);
+        }
         dupdb_save_to_file(duplicate_database);
     }
+}
+
+fn dupdb_notifications_send(duplicate_paths: Vec<String>) {
+    let handle = Notification::new().summary("Duplicate Files detected")
+        .body("Duplicate files were saved to the watched directory by dupdb, what would you like to do?")
+        .action("Ignore", "ignore")
+        .action("Remove", "remove")
+        .image_path(&duplicate_paths[0])
+        .show();
+    // sadly wait_for_action is only available on xdg
+
+
+    // handle.wait_for_action(|action| match action {
+    //         "__closed" | "ignore" => {
+    //             println!("Closed or ignored");
+    //             handle.close();
+    //         }, 
+    //         "remove" => {
+    //             println!("Remove please {:?}", duplicate_paths)
+    //         },
+    //         _ => ()
+    //     });
 }
 
 
