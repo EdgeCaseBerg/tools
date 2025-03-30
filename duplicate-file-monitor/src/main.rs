@@ -16,6 +16,7 @@ use notify_rust::Notification;
 
 const NAME_OF_HIDDEN_FOLDER: &str = ".dupdb";
 const NAME_OF_HASH_FILE: &str = "index.dat";
+const APPNAME: &str = "Dup DB";
 const DEBUGGING_LOCAL: bool = true;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -166,7 +167,7 @@ fn dupdb_update_hashes_for(paths: Vec<PathBuf>, duplicate_database: &mut Duplica
                     if duplicate_database.hash_already_exists(hash) {
                         // send notification
                         println!("Duplicate detected {:?}", absolute_path);
-                        duplicates_in_aggregate.push(absolute_path.clone());
+                        duplicates_in_aggregate.push(path.clone());
                         db_dirty = true;
                     }
 
@@ -187,26 +188,31 @@ fn dupdb_update_hashes_for(paths: Vec<PathBuf>, duplicate_database: &mut Duplica
     }
 }
 
-fn dupdb_notifications_send(duplicate_paths: Vec<String>) {
+fn dupdb_notifications_send(duplicate_paths: Vec<PathBuf>) {
+    if duplicate_paths.is_empty() {
+        return;
+    }
+
+    let first_image = path::absolute(duplicate_paths[0].clone())
+            .expect("Unable to get absolute path for file to hash").to_str()
+            .expect("Unexpected file name containining non utf 8 characters found").to_string();
+
+    let mut listing = String::new();
+    for dup in duplicate_paths.iter() {
+        dup.file_name().map(|name| {
+            listing.push_str("\n • ");
+            listing.push_str(&name.to_string_lossy());
+        });
+    }
+    
     let handle = Notification::new().summary("Duplicate Files detected")
-        .body("Duplicate files were saved to the watched directory by dupdb, what would you like to do?")
-        .action("Ignore", "ignore")
-        .action("Remove", "remove")
-        .image_path(&duplicate_paths[0])
+        .appname(APPNAME)
+        .body(&format!("Duplicate files were saved to the watched directory by dupdb.{listing}").to_string())
+        .image_path(&first_image) // Shouldn't happen becuase we already grabbed the abs before
+        .finalize()
         .show();
-    // sadly wait_for_action is only available on xdg
 
-
-    // handle.wait_for_action(|action| match action {
-    //         "__closed" | "ignore" => {
-    //             println!("Closed or ignored");
-    //             handle.close();
-    //         }, 
-    //         "remove" => {
-    //             println!("Remove please {:?}", duplicate_paths)
-    //         },
-    //         _ => ()
-    //     });
+    handle.expect("Could not send notification for duplicates");
 }
 
 
