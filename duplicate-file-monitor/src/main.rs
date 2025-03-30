@@ -1,6 +1,5 @@
-use std::path::{ Path, PathBuf };
-use std::fs::File;
-use std::fs::DirBuilder;
+use std::path::{self, Path, PathBuf };
+use std::fs::{self, File, DirBuilder};
 use std::io::ErrorKind;
 use std::io::Write;
 use std::time::Duration;
@@ -114,7 +113,7 @@ fn dupdb_database_load_to_memory(use_home_dir: bool) -> DuplicateDatabase {
     rmp_serde::from_read(handle).expect("Could not deserialize DuplicateDatabase")
 }
 
-fn dupdb_watch_forever(watch_folder_path: &Path, dupdb_database_load_to_memory: &mut DuplicateDatabase) {
+fn dupdb_watch_forever(watch_folder_path: &Path, duplicate_database: &mut DuplicateDatabase) {
     let (tx, rx) = mpsc::channel();
 
     let backend_config = notify::Config::default().with_poll_interval(Duration::from_millis(500));
@@ -128,15 +127,43 @@ fn dupdb_watch_forever(watch_folder_path: &Path, dupdb_database_load_to_memory: 
         match result {
             Ok(events) => {
                 let paths = events.into_iter().map(|event| event.path).collect();
-                dupdb_update_hashes_for(paths);
+                dupdb_update_hashes_for(paths, duplicate_database);
             },
             Err(error) => eprintln!("Watch error: {:?}", error),
         }
     }
 }
 
-fn dupdb_update_hashes_for(paths: Vec<PathBuf>) {
-    println!("Would update hashes on {:?}", paths);
+fn dupdb_update_hashes_for(paths: Vec<PathBuf>, duplicate_database: &mut DuplicateDatabase) {
+    paths.iter().for_each(|path| {
+        let absolute_path = path::absolute(path)
+            .expect("Unable to get absolute path for file to hash").to_str()
+            .expect("Unexpected file name containining non utf 8 characters found").to_string();
+        if !path.exists() {
+            duplicate_database.remove(absolute_path);
+            // TONEXT
+            // write db out.
+            // early return + unnest
+        } else {
+            // TODO: filter to non directories only
+            match fs::read(path) {
+                Ok(bytes) => {
+                    let hash = seahash::hash(&bytes);
+                    if duplicate_database.hash_already_exists(hash) {
+                        // send notification
+                        println!("Duplicate detected {:?}", absolute_path);
+                    }
+
+                    duplicate_database.add(hash, absolute_path);
+                },
+                Err(error) => {
+                    eprintln!("Unexpected failure to read path: {:?} {:?}", error, path);
+                }
+            }
+        }
+    });
+    println!("{:?}", duplicate_database);
+    // TODO: write db out to file
 }
 
 
