@@ -10,3 +10,4 @@ notify-debouncer-mini = { version = "0.6.0", features = [] }
 serde = { version = "1.0.219", features = ["std", "derive", "alloc"] }
 rmp-serde = "1.3.0"
 seahash = "4.1.0"
+nav-update = { path = "../nav-update/" }

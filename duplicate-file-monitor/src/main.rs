@@ -1,3 +1,4 @@
+use std::env;
 use std::path::{self, Path, PathBuf };
 use std::fs::{self, File, DirBuilder};
 use std::io::ErrorKind;
@@ -14,10 +15,32 @@ use rmp_serde::{self, Serializer};
 
 use notify_rust::Notification;
 
+use nav_update::RecursiveDirIterator;
+
 const NAME_OF_HIDDEN_FOLDER: &str = ".dupdb";
 const NAME_OF_HASH_FILE: &str = "index.dat";
 const APPNAME: &str = "Dup DB";
 const DEBUGGING_LOCAL: bool = true;
+
+
+fn main() {
+    let folder_name = env::args().nth(1).unwrap_or("./test".to_string());
+    let folder_to_watch = Path::new(&folder_name);
+
+    // Initialize .dupdb in folder.
+    let needs_reset = dupdb_initialize_hidden_folder();
+    // Load database
+    let mut database = dupdb_database_load_to_memory();
+
+    if needs_reset {
+        dupdb_reset_database_from_existing_files(folder_to_watch.to_path_buf(), &mut database);
+        dupdb_save_to_file(&database);
+        println!("Initial database saved to {:?}", folder_to_watch);
+    }        
+
+
+    dupdb_watch_forever(folder_to_watch, &mut database);
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 struct DuplicateDatabase {
@@ -46,6 +69,7 @@ impl DuplicateDatabase {
                 eprintln!("Requested to remove path that wasn't tracked {:?}", full_file_path);
                 // Could technically do a full search over all values but that shouldn't
                 // be neccesary unless we screw up and access the maps directly.
+                // This is normal if we haven't built the index yet and a file is removed from where we're watching.
             },
             Some(hash) => {
                 let existing_files = self.hash_to_files.entry(*hash).or_default();
@@ -56,25 +80,14 @@ impl DuplicateDatabase {
     }
 }
 
-fn main() {
-    // Initialize .dupdb in folder.
-    dupdb_initialize_hidden_folder();
-
-    // Load database
-    let mut database = dupdb_database_load_to_memory();
-
-    // TODO: Read folder to watch from env instead of just .
-    let folder_to_watch = Path::new("./test");
-    dupdb_watch_forever(folder_to_watch, &mut database);
-}
-
-fn dupdb_initialize_hidden_folder() {
+/// Returns true if new index was created, false otherwise
+fn dupdb_initialize_hidden_folder() -> bool {
     let mut builder = DirBuilder::new();
     let path = dupdb_database_path();
     let mut index_file = path.clone();
     index_file.push(NAME_OF_HASH_FILE);
 
-    builder.recursive(true).create(path).expect("Could not create .dupdb database.");
+    builder.recursive(true).create(path.clone()).expect("Could not create .dupdb database.");
     match File::create_new(&index_file) {
         Ok(mut file) => {
             println!("New index file has been created: {:?}", index_file);
@@ -85,6 +98,7 @@ fn dupdb_initialize_hidden_folder() {
             let mut buf = Vec::new();
             empty.serialize(&mut Serializer::new(&mut buf)).expect("Could not serialize empty DuplicateDatabase");
             file.write_all(&buf).expect("Did not write bytes to file");
+            true
         },
         Err(error) => {
             if error.kind() == ErrorKind::AlreadyExists {
@@ -93,7 +107,26 @@ fn dupdb_initialize_hidden_folder() {
             } else {
                 panic!("There was a problem creating the index file: {:?}", error);
             }
+            false
         }
+    }
+}
+
+fn dupdb_reset_database_from_existing_files(path: PathBuf, duplicate_database: &mut DuplicateDatabase) {
+    println!("Reseting database according to files within {:?}", path);
+    let entries = RecursiveDirIterator::new(&path).expect("Could not load path to reindex database");
+    let paths = entries
+        .filter(|dir_entry| dir_entry.path().extension().is_some()) // Remove directories, keep files only.
+        .map(|file| file.path())
+        .collect();
+    dupdb_update_hashes_for(paths, duplicate_database);
+}
+
+fn dupdb_database_path() -> PathBuf {
+    if !DEBUGGING_LOCAL {
+        Path::new(env!("HOME")).join(NAME_OF_HIDDEN_FOLDER)
+    } else {
+        Path::new(".").join(NAME_OF_HIDDEN_FOLDER)
     }
 }
 
@@ -108,13 +141,6 @@ fn dupdb_save_to_file(duplicate_database: &DuplicateDatabase) {
     file.write_all(&buf).expect("Did not write bytes to file");
 }
 
-fn dupdb_database_path() -> PathBuf {
-    if !DEBUGGING_LOCAL {
-        Path::new(env!("HOME")).join(NAME_OF_HIDDEN_FOLDER)
-    } else {
-        Path::new(".").join(NAME_OF_HIDDEN_FOLDER)
-    }
-}
 
 fn dupdb_database_load_to_memory() -> DuplicateDatabase {
     let folder = dupdb_database_path();
@@ -199,10 +225,10 @@ fn dupdb_notifications_send(duplicate_paths: Vec<PathBuf>) {
 
     let mut listing = String::new();
     for dup in duplicate_paths.iter() {
-        dup.file_name().map(|name| {
+        if let Some(name) = dup.file_name() {
             listing.push_str("\n • ");
             listing.push_str(&name.to_string_lossy());
-        });
+        };
     }
     
     let handle = Notification::new().summary("Duplicate Files detected")
