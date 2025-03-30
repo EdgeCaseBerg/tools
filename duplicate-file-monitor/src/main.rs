@@ -36,6 +36,21 @@ impl DuplicateDatabase {
     fn hash_already_exists(&self, hash: u64) -> bool {
         self.hash_to_files.contains_key(&hash)
     }
+
+    fn remove(&mut self, full_file_path: String) {
+        match self.files_to_hash.get(&full_file_path) {
+            None => {
+                eprintln!("Requested to remove path that wasn't tracked {:?}", full_file_path);
+                // Could technically do a full search over all values but that shouldn't
+                // be neccesary unless we screw up and access the maps directly.
+            },
+            Some(hash) => {
+                let existing_files = self.hash_to_files.entry(*hash).or_default();
+                existing_files.retain(|f| *f != full_file_path);
+                self.files_to_hash.remove_entry(&full_file_path);
+            }
+        }
+    }
 }
 
 fn main() {
