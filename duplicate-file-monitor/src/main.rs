@@ -14,6 +14,7 @@ use rmp_serde::{self, Serializer};
 
 const NAME_OF_HIDDEN_FOLDER: &str = ".dupdb";
 const NAME_OF_HASH_FILE: &str = "index.dat";
+const DEBUGGING_LOCAL: bool = true;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct DuplicateDatabase {
@@ -53,23 +54,20 @@ impl DuplicateDatabase {
 }
 
 fn main() {
-    // Testing for now, leave false.
-    let use_home_dir = false;
-
     // Initialize .dupdb in folder.
-    dupdb_initialize_hidden_folder(use_home_dir);
+    dupdb_initialize_hidden_folder();
 
     // Load database
-    let mut database = dupdb_database_load_to_memory(use_home_dir);
+    let mut database = dupdb_database_load_to_memory();
 
     // TODO: Read folder to watch from env instead of just .
-    let folder_to_watch = Path::new(".");
+    let folder_to_watch = Path::new("./test");
     dupdb_watch_forever(folder_to_watch, &mut database);
 }
 
-fn dupdb_initialize_hidden_folder(use_home_dir: bool) {
+fn dupdb_initialize_hidden_folder() {
     let mut builder = DirBuilder::new();
-    let path = dupdb_database_path(use_home_dir);
+    let path = dupdb_database_path();
     let mut index_file = path.clone();
     index_file.push(NAME_OF_HASH_FILE);
 
@@ -96,16 +94,27 @@ fn dupdb_initialize_hidden_folder(use_home_dir: bool) {
     }
 }
 
-fn dupdb_database_path(use_home_dir: bool) -> PathBuf {
-    if use_home_dir {
+fn dupdb_save_to_file(duplicate_database: &DuplicateDatabase) {
+    let folder = dupdb_database_path();
+    let mut index_file = folder.clone();
+    index_file.push(NAME_OF_HASH_FILE);
+
+    let mut file = File::options().read(true).write(true).truncate(true).open(index_file).expect("Could not open index file");
+    let mut buf = Vec::new();
+    duplicate_database.serialize(&mut Serializer::new(&mut buf)).expect("Could not serialize empty DuplicateDatabase");
+    file.write_all(&buf).expect("Did not write bytes to file");
+}
+
+fn dupdb_database_path() -> PathBuf {
+    if !DEBUGGING_LOCAL {
         Path::new(env!("HOME")).join(NAME_OF_HIDDEN_FOLDER)
     } else {
         Path::new(".").join(NAME_OF_HIDDEN_FOLDER)
     }
 }
 
-fn dupdb_database_load_to_memory(use_home_dir: bool) -> DuplicateDatabase {
-    let folder = dupdb_database_path(use_home_dir);
+fn dupdb_database_load_to_memory() -> DuplicateDatabase {
+    let folder = dupdb_database_path();
     let mut index_file = folder.clone();
     index_file.push(NAME_OF_HASH_FILE);
 
@@ -135,23 +144,28 @@ fn dupdb_watch_forever(watch_folder_path: &Path, duplicate_database: &mut Duplic
 }
 
 fn dupdb_update_hashes_for(paths: Vec<PathBuf>, duplicate_database: &mut DuplicateDatabase) {
-    paths.iter().for_each(|path| {
+    let mut duplicates_in_aggregate = Vec::new();
+    let mut db_dirty = false;
+    for path in paths.iter() {
         let absolute_path = path::absolute(path)
             .expect("Unable to get absolute path for file to hash").to_str()
             .expect("Unexpected file name containining non utf 8 characters found").to_string();
         if !path.exists() {
             duplicate_database.remove(absolute_path);
-            // TONEXT
-            // write db out.
-            // early return + unnest
+            db_dirty = true;
         } else {
-            // TODO: filter to non directories only
+            // We don't care about directories, only files we can hash. 
+            if path.is_dir() {
+                continue;
+            }
             match fs::read(path) {
                 Ok(bytes) => {
                     let hash = seahash::hash(&bytes);
                     if duplicate_database.hash_already_exists(hash) {
                         // send notification
                         println!("Duplicate detected {:?}", absolute_path);
+                        duplicates_in_aggregate.push(absolute_path.clone());
+                        db_dirty = true;
                     }
 
                     duplicate_database.add(hash, absolute_path);
@@ -161,9 +175,12 @@ fn dupdb_update_hashes_for(paths: Vec<PathBuf>, duplicate_database: &mut Duplica
                 }
             }
         }
-    });
-    println!("{:?}", duplicate_database);
-    // TODO: write db out to file
+    };
+
+    if db_dirty {
+        println!("{:?}", duplicate_database);
+        dupdb_save_to_file(duplicate_database);
+    }
 }
 
 
