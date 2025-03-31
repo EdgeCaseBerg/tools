@@ -67,7 +67,12 @@ impl DuplicateDatabase {
     }
 
     fn hash_already_exists(&self, hash: u64) -> bool {
-        self.hash_to_files.contains_key(&hash)
+        let contains_hash = self.hash_to_files.contains_key(&hash);
+        if !contains_hash {
+            return false;
+        }
+
+        self.hash_to_files.get(&hash).iter().count() >= 1
     }
 
     fn remove(&mut self, full_file_path: String) {
@@ -222,6 +227,7 @@ fn dupdb_update_hashes_for(paths: Vec<PathBuf>, duplicate_database: &mut Duplica
                         // send notification
                         println!("Duplicate detected {:?}", absolute_path);
                         duplicates_in_aggregate.push(path.clone());
+                        duplicate_database.debug_key(absolute_path.clone());
                         db_dirty = true;
                     }
 
