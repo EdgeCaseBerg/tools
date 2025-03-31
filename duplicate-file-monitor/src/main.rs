@@ -38,6 +38,13 @@ fn main() {
         println!("Initial database saved to {:?}", folder_to_watch);
     }        
 
+    // if 2 arguments are sent, then second is key to look up for debugging
+    // because I'm getting a lot of conflicts on files that aren't actually duplicates.
+    if let Some(file_path) = env::args().nth(2) {
+        dupdb_debug_file_path_print(file_path, &database);
+        return;
+    }
+
 
     dupdb_watch_forever(folder_to_watch, &mut database);
 }
@@ -75,6 +82,27 @@ impl DuplicateDatabase {
                 let existing_files = self.hash_to_files.entry(*hash).or_default();
                 existing_files.retain(|f| *f != full_file_path);
                 self.files_to_hash.remove_entry(&full_file_path);
+            }
+        }
+    }
+
+    fn debug_key(&self, full_file_path: String) {
+        match self.files_to_hash.get(&full_file_path) {
+            None => {
+                println!("Path {:?} not in files_to_hash list", full_file_path);
+            },
+            Some(hash) => {
+                println!("Path {:?} is in list with hash {:?}", full_file_path, hash);
+                match self.hash_to_files.get(hash) {
+                    None => {
+                        println!("Hash {:?} does not have a matching list of files", hash);
+                    },
+                    Some(existing_files) => {
+                        for file_mapped_to_hash in existing_files {
+                            println!("Value: {:?}", file_mapped_to_hash);
+                        }
+                    }
+                }
             }
         }
     }
@@ -241,6 +269,11 @@ fn dupdb_notifications_send(duplicate_paths: Vec<PathBuf>) {
     handle.expect("Could not send notification for duplicates");
 }
 
-
+fn dupdb_debug_file_path_print(path: String, duplicate_database: &DuplicateDatabase) {
+    let absolute_path = path::absolute(path)
+        .expect("Unable to get absolute path for file to hash").to_str()
+        .expect("Unexpected file name containining non utf 8 characters found").to_string();
+    duplicate_database.debug_key(absolute_path);
+}
 
 
