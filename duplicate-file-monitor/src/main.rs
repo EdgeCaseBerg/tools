@@ -6,8 +6,9 @@ use std::io::Write;
 use std::time::Duration;
 use std::collections::HashMap;
 
-use notify::{self, RecursiveMode};
-use notify_debouncer_mini::{new_debouncer_opt, Config};
+use notify::{self, RecursiveMode, EventKind};
+use notify_debouncer_full::new_debouncer;
+
 use std::sync::mpsc;
 
 use serde::{Serialize, Deserialize};
@@ -38,8 +39,8 @@ fn main() {
         println!("Initial database saved to {:?}", folder_to_watch);
     }        
 
-    // if 2 arguments are sent, then second is key to look up for debugging
-    // because I'm getting a lot of conflicts on files that aren't actually duplicates.
+    // if 2 argumetns are sent, then second is key to look up for debugging
+    // because I'm getting a lot of conflicts on files that aren't actually duplicates.    
     if let Some(file_path) = env::args().nth(2) {
         dupdb_debug_file_path_print(file_path, &database);
         return;
@@ -66,13 +67,17 @@ impl DuplicateDatabase {
         self.files_to_hash.entry(full_file_path).insert_entry(hash);
     }
 
-    fn hash_already_exists(&self, hash: u64) -> bool {
+    fn contains_duplicate_for_hash(&self, hash: u64) -> bool {
         let contains_hash = self.hash_to_files.contains_key(&hash);
         if !contains_hash {
             return false;
         }
 
-        self.hash_to_files.get(&hash).iter().count() >= 1
+        if let Some(files) = self.hash_to_files.get(&hash) {
+            return files.iter().count() > 1
+        }
+        
+        return false;
     }
 
     fn remove(&mut self, full_file_path: String) {
@@ -84,6 +89,7 @@ impl DuplicateDatabase {
                 // This is normal if we haven't built the index yet and a file is removed from where we're watching.
             },
             Some(hash) => {
+                println!("Removing entry with hash {:?} and path {:?}", hash, full_file_path);
                 let existing_files = self.hash_to_files.entry(*hash).or_default();
                 existing_files.retain(|f| *f != full_file_path);
                 self.files_to_hash.remove_entry(&full_file_path);
@@ -187,17 +193,21 @@ fn dupdb_database_load_to_memory() -> DuplicateDatabase {
 fn dupdb_watch_forever(watch_folder_path: &Path, duplicate_database: &mut DuplicateDatabase) {
     let (tx, rx) = mpsc::channel();
 
-    let backend_config = notify::Config::default().with_poll_interval(Duration::from_millis(500));
-    let debouncer_config = Config::default()
-        .with_timeout(Duration::from_millis(500))
-        .with_notify_config(backend_config);
-    let mut debouncer = new_debouncer_opt::<_, notify::PollWatcher>(debouncer_config, tx).expect("Failed to configure debouncer");
-
-    debouncer.watcher().watch(watch_folder_path, RecursiveMode::Recursive).expect("Failed to begin file watch");
+    let mut debouncer = new_debouncer(Duration::from_secs(1), None, tx).expect("Failed to configure debouncer");
+    debouncer.watch(watch_folder_path, RecursiveMode::Recursive).expect("Failed to begin file watch");
     for result in rx {
         match result {
-            Ok(events) => {
-                let paths = events.into_iter().map(|event| event.path).collect();
+            Ok(debounced_events) => {
+                let paths: Vec<PathBuf> = debounced_events.into_iter().filter_map(|event| {
+                    match event.kind {
+                        EventKind::Remove(_) => Some(event.paths.clone()),
+                        EventKind::Create(_) => Some(event.paths.clone()),
+                        EventKind::Modify(_) => Some(event.paths.clone()),
+                        EventKind::Any => Some(event.paths.clone()),
+                        EventKind::Access(_) => None,
+                        EventKind::Other => None,
+                    }
+                }).flatten().collect();
                 dupdb_update_hashes_for(paths, duplicate_database);
             },
             Err(error) => eprintln!("Watch error: {:?}", error),
@@ -223,15 +233,15 @@ fn dupdb_update_hashes_for(paths: Vec<PathBuf>, duplicate_database: &mut Duplica
             match fs::read(path) {
                 Ok(bytes) => {
                     let hash = seahash::hash(&bytes);
-                    if duplicate_database.hash_already_exists(hash) {
+                    duplicate_database.add(hash, absolute_path.clone());
+                    if duplicate_database.contains_duplicate_for_hash(hash) {
                         // send notification
-                        println!("Duplicate detected {:?}", absolute_path);
+                        println!("Duplicate detected {:?} {:?}", absolute_path, hash);
                         duplicates_in_aggregate.push(path.clone());
                         duplicate_database.debug_key(absolute_path.clone());
                         db_dirty = true;
                     }
 
-                    duplicate_database.add(hash, absolute_path);
                 },
                 Err(error) => {
                     eprintln!("Unexpected failure to read path: {:?} {:?}", error, path);
