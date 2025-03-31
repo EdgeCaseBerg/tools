@@ -1,0 +1,3 @@
+.dupdb
+test/*
+!test/.gitkeep
