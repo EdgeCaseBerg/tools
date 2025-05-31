@@ -4,12 +4,13 @@ const XBOX_ALIAS_1: &str = "xbox";
 const XBOX_ALIAS_2: &str = "xbox";
 const PS_ALIAS: &str = "playstation";
 
-const screen_width: u32 = 800;
-const screen_height: u32 = 450;
+const SCREEN_WIDTH: i32 = 800;
+const SCREEN_HEIGHT: i32 = 450;
+
 
 fn main() {
     let (mut rl, thread) = raylib::init()
-        .size(screen_width, screen_height)
+        .size(SCREEN_WIDTH, SCREEN_HEIGHT)
         .title("Game Pad output")
         .build();
      
