@@ -15,8 +15,8 @@ fn main() {
         .msaa_4x()
         .build();
 
-    let xbox_texture = rl.load_texture(&thread, "resources/xbox.png");
-    let ps3_texture  = rl.load_texture(&thread, "resources/ps3.png");
+    let xbox_texture = rl.load_texture(&thread, "resources/xbox.png").expect("Cannot run program if gamepad texture (xbox) missing");
+    let ps3_texture  = rl.load_texture(&thread, "resources/ps3.png").expect("Cannot run program if gamepad texture (ps3) missing");
      
     while !rl.window_should_close() {
         let mut d = rl.begin_drawing(&thread);
@@ -24,4 +24,8 @@ fn main() {
         d.clear_background(Color::WHITE);
         d.draw_text("Hello, world!", 12, 12, 20, Color::BLACK);
     }
+
+    // We don't need to do this because the Drop implementation for Texture2D will handle this
+    // rl.unload_texture(&thread, xbox_texture.make_weak());
+    // rl.unload_texture(&thread, ps3_texture.make_weak());
 }
