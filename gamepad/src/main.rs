@@ -14,6 +14,9 @@ fn main() {
         .title("Game Pad output")
         .msaa_4x()
         .build();
+
+    let xbox_texture = rl.load_texture(&thread, "resources/xbox.png");
+    let ps3_texture  = rl.load_texture(&thread, "resources/ps3.png");
      
     while !rl.window_should_close() {
         let mut d = rl.begin_drawing(&thread);
