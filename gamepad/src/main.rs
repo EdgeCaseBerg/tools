@@ -7,6 +7,12 @@ const PS_ALIAS: &str = "playstation";
 const SCREEN_WIDTH: i32 = 800;
 const SCREEN_HEIGHT: i32 = 450;
 
+const DEADZONE_LEFT_STICK_X: f32 = 0.1;
+const DEADZONE_LEFT_STICK_Y: f32 = 0.1;
+const DEADZONE_LEFT_TRIGGER: f32 = -0.9;
+const DEADZONE_RIGHT_STICK_X: f32 = 0.1;
+const DEADZONE_RIGHT_STICK_Y: f32 = 0.1;
+const DEADZONE_RIGHT_TRIGGER: f32 = -0.9;
 
 fn main() {
     let (mut rl, thread) = raylib::init()
