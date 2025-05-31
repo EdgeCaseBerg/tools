@@ -12,6 +12,7 @@ fn main() {
     let (mut rl, thread) = raylib::init()
         .size(SCREEN_WIDTH, SCREEN_HEIGHT)
         .title("Game Pad output")
+        .msaa_4x()
         .build();
      
     while !rl.window_should_close() {
