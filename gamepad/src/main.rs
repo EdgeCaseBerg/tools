@@ -32,12 +32,13 @@ fn main() {
     let gamepad_to_display = 0;
      
     while !rl.window_should_close() {
+        let left_stick_x = rl.get_gamepad_axis_movement(gamepad_to_display, GamepadAxis::GAMEPAD_AXIS_LEFT_X);
         let mut d = rl.begin_drawing(&thread);
          
         if d.is_gamepad_available(gamepad_to_display) {
-            d.draw_text(&format!("Gamepad: {gamepad_to_display}"), 60, 60, 20, Color::BLACK);            
+            d.draw_text(&format!("Gamepad: {gamepad_to_display} {left_stick_x}"), 60, 60, 20, Color::BLACK);            
         } else {
-            d.draw_text(&format!("No Gamepad: {gamepad_to_display}"), 60, 60, 20, Color::BLACK);            
+            d.draw_text(&format!("No Gamepad: {gamepad_to_display} {left_stick_x}"), 60, 60, 20, Color::BLACK);            
         }
 
         d.clear_background(Color::WHITE);
