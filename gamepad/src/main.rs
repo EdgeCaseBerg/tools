@@ -14,12 +14,16 @@ const DEADZONE_RIGHT_STICK_X: f32 = 0.1;
 const DEADZONE_RIGHT_STICK_Y: f32 = 0.1;
 const DEADZONE_RIGHT_TRIGGER: f32 = -0.9;
 
+const TARGET_FPS: u32 = 60;
+
 fn main() {
     let (mut rl, thread) = raylib::init()
         .size(SCREEN_WIDTH, SCREEN_HEIGHT)
         .title("Game Pad output")
         .msaa_4x()
         .build();
+
+    rl.set_target_fps(TARGET_FPS);
 
     let xbox_texture = rl.load_texture(&thread, "resources/xbox.png").expect("Cannot run program if gamepad texture (xbox) missing");
     let ps3_texture  = rl.load_texture(&thread, "resources/ps3.png").expect("Cannot run program if gamepad texture (ps3) missing");
