@@ -1,28 +1,24 @@
 use std::env;
 use std::path::{self, Path, PathBuf };
-use std::fs::{self, File, DirBuilder};
-use std::io::ErrorKind;
-use std::io::Write;
+use std::fs::{ self };
 use std::time::Duration;
-use std::collections::HashMap;
 
 use notify::{self, RecursiveMode, EventKind};
 use notify_debouncer_full::new_debouncer;
 
 use std::sync::mpsc;
 
-use serde::{Serialize, Deserialize};
-use rmp_serde::{self, Serializer};
-
 use notify_rust::Notification;
 
 use nav_update::RecursiveDirIterator;
+use rusqlite::Connection;
 
 const NAME_OF_HIDDEN_FOLDER: &str = ".dupdb";
 const NAME_OF_HASH_FILE: &str = "index.dat";
 const APPNAME: &str = "Dup DB";
 const DEBUGGING_LOCAL: bool = true;
 
+mod sql;
 
 fn main() {
     let folder_name = env::args().nth(1).unwrap_or("./test".to_string());
@@ -30,6 +26,7 @@ fn main() {
 
     // Initialize .dupdb in folder.
     let needs_reset = dupdb_initialize_hidden_folder();
+
     // Load database
     let mut database = dupdb_database_load_to_memory();
 
@@ -46,113 +43,66 @@ fn main() {
         return;
     }
 
-
     dupdb_watch_forever(folder_to_watch, &mut database);
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug)]
 struct DuplicateDatabase {
-    hash_to_files: HashMap<u64, Vec<String>>,
-    files_to_hash: HashMap<String, u64>
+    conn: Connection
 }
 
 impl DuplicateDatabase {
     fn add(&mut self, hash: u64, full_file_path: String) {
-        let entry = self.hash_to_files.entry(hash);
-        let existing_files = entry.or_default();
-        if !existing_files.contains(&full_file_path) {
-            existing_files.push(full_file_path.clone());
+        let entered = sql::insert_file_hash(&self.conn, hash, &full_file_path);
+        if !entered {
+            eprintln!("Did not enter file path and hash into database: {}, {}", hash, full_file_path);
         }
-
-        self.files_to_hash.entry(full_file_path).insert_entry(hash);
     }
 
     fn contains_duplicate_for_hash(&self, hash: u64) -> bool {
-        let contains_hash = self.hash_to_files.contains_key(&hash);
-        if !contains_hash {
-            return false;
-        }
-
-        if let Some(files) = self.hash_to_files.get(&hash) {
-            return files.len() > 1
-        }
-        
-        false
+        let count = sql::count_of_same_hash(&self.conn, hash);
+        count > 1
     }
 
     fn remove(&mut self, full_file_path: String) {
-        match self.files_to_hash.get(&full_file_path) {
-            None => {
-                eprintln!("Requested to remove path that wasn't tracked {:?}", full_file_path);
-                // Could technically do a full search over all values but that shouldn't
-                // be neccesary unless we screw up and access the maps directly.
-                // This is normal if we haven't built the index yet and a file is removed from where we're watching.
-            },
-            Some(hash) => {
-                println!("Removing entry with hash {:?} and path {:?}", hash, full_file_path);
-                let existing_files = self.hash_to_files.entry(*hash).or_default();
-                existing_files.retain(|f| *f != full_file_path);
-                self.files_to_hash.remove_entry(&full_file_path);
-            }
+        // TODO just replace with a plain DELETE query in sql and save the effort
+        let references = sql::dups_by_file(&self.conn, &full_file_path);
+        let to_remove: Vec<(String, String)> = references.into_iter().filter(|(_, file_path)| *file_path == full_file_path).collect();
+        for (hash, filepath) in to_remove {
+            let numeric_hash = hash.parse().expect("Hash stored in database was not parseable to u64");
+            sql::delete_all_matching(&self.conn, numeric_hash, &filepath);
         }
     }
 
     fn debug_key(&self, full_file_path: String) {
-        match self.files_to_hash.get(&full_file_path) {
-            None => {
-                println!("Path {:?} not in files_to_hash list", full_file_path);
-            },
-            Some(hash) => {
-                println!("Path {:?} is in list with hash {:?}", full_file_path, hash);
-                match self.hash_to_files.get(hash) {
-                    None => {
-                        println!("Hash {:?} does not have a matching list of files", hash);
-                    },
-                    Some(existing_files) => {
-                        for file_mapped_to_hash in existing_files {
-                            println!("Value: {:?}", file_mapped_to_hash);
-                        }
-                    }
-                }
-            }
+        let references = sql::dups_by_file(&self.conn, &full_file_path);
+        if references.len() == 0 {
+            println!("Path {:?} not in files_to_hash list", full_file_path);
+            return;
+        }
+
+        for (hash, file_path) in references {
+            println!("Value: Hash: {:?} Path: {:?}", hash, file_path);
         }
     }
 }
 
 /// Returns true if new index was created, false otherwise
 fn dupdb_initialize_hidden_folder() -> bool {
-    let mut builder = DirBuilder::new();
-    let path = dupdb_database_path();
-    let mut index_file = path.clone();
-    index_file.push(NAME_OF_HASH_FILE);
-
-    builder.recursive(true).create(path.clone()).expect("Could not create .dupdb database.");
-    match File::create_new(&index_file) {
-        Ok(mut file) => {
-            println!("New index file has been created: {:?}", index_file);
-            let empty = DuplicateDatabase {
-                hash_to_files: HashMap::new(),
-                files_to_hash: HashMap::new()
-            };
-            let mut buf = Vec::new();
-            empty.serialize(&mut Serializer::new(&mut buf)).expect("Could not serialize empty DuplicateDatabase");
-            file.write_all(&buf).expect("Did not write bytes to file");
-            true
-        },
-        Err(error) => {
-            if error.kind() == ErrorKind::AlreadyExists {
-                // Good, it exists. Do nothing.
-                println!("Index file already exists: {:?}", index_file);
-            } else {
-                panic!("There was a problem creating the index file: {:?}", error);
-            }
-            false
-        }
+    let database_exists_already = Path::new(".").join(sql::DATABASE_FILE).exists();
+    if database_exists_already {
+        return false;
     }
+    let connection = sql::connect_to_sqlite().expect("Could not open connection to database.");
+    sql::initialize(&connection);
+    return true;
 }
+
 
 fn dupdb_reset_database_from_existing_files(path: PathBuf, duplicate_database: &mut DuplicateDatabase) {
     println!("Reseting database according to files within {:?}", path);
+    sql::reset_all_data(&duplicate_database.conn);
+
     let entries = RecursiveDirIterator::new(&path).expect("Could not load path to reindex database");
     let paths = entries
         .filter(|dir_entry| dir_entry.path().extension().is_some()) // Remove directories, keep files only.
@@ -170,24 +120,15 @@ fn dupdb_database_path() -> PathBuf {
 }
 
 fn dupdb_save_to_file(duplicate_database: &DuplicateDatabase) {
-    let folder = dupdb_database_path();
-    let mut index_file = folder.clone();
-    index_file.push(NAME_OF_HASH_FILE);
 
-    let mut file = File::options().read(true).write(true).truncate(true).open(index_file).expect("Could not open index file");
-    let mut buf = Vec::new();
-    duplicate_database.serialize(&mut Serializer::new(&mut buf)).expect("Could not serialize empty DuplicateDatabase");
-    file.write_all(&buf).expect("Did not write bytes to file");
 }
 
-
 fn dupdb_database_load_to_memory() -> DuplicateDatabase {
-    let folder = dupdb_database_path();
-    let mut index_file = folder.clone();
-    index_file.push(NAME_OF_HASH_FILE);
-
-    let handle = File::open(index_file).expect("Could not open index file");
-    rmp_serde::from_read(handle).expect("Could not deserialize DuplicateDatabase")
+    let connection = sql::connect_to_sqlite().expect("Unable to connect to sqlite database");
+    sql::initialize(&connection);
+    DuplicateDatabase {
+        conn: connection
+    }
 }
 
 fn dupdb_watch_forever(watch_folder_path: &Path, duplicate_database: &mut DuplicateDatabase) {
