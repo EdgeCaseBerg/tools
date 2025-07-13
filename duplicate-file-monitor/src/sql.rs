@@ -5,8 +5,7 @@ use std::path::{self, PathBuf };
 const DATABASE_FILE: &str = "helloworld.db";
 
 pub fn connect_to_sqlite() -> Result<Connection, rusqlite::Error> {
-    let conn = Connection::open(DATABASE_FILE);
-    conn
+    Connection::open(DATABASE_FILE)
 }
 
 const SQL_CREATE_TABLE: &str = "

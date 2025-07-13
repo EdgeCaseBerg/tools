@@ -74,10 +74,10 @@ impl DuplicateDatabase {
         }
 
         if let Some(files) = self.hash_to_files.get(&hash) {
-            return files.iter().count() > 1
+            return files.len() > 1
         }
         
-        return false;
+        false
     }
 
     fn remove(&mut self, full_file_path: String) {
