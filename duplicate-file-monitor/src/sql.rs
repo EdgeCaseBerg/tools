@@ -89,9 +89,7 @@ pub fn dups_by_file(conn: &Connection, absolute_path: &str) -> Vec<(String, Stri
 }
 
 const SQL_DELETE_BY_HASH_AND_FILE: &str ="
-DELETE FROM dupdb_filehashes WHERE rowid = (
-	SELECT rowid FROM dupdb_filehashes WHERE hash = ?1 AND file_path = ?2 LIMIT 1
-)
+DELETE FROM dupdb_filehashes WHERE hash = ?1 AND file_path = ?2
 ";
 
 pub fn delete_all_matching(conn: &Connection, hash: u64, absolute_path: &str) -> usize {
