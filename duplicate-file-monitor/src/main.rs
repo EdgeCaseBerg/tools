@@ -223,7 +223,14 @@ fn dupdb_notifications_send(duplicate_paths: Vec<PathBuf>) {
         .finalize()
         .show();
 
-    handle.expect("Could not send notification for duplicates");
+        // Error { kind: Msg("Error { code: HRESULT(0x803E0115), message: \"The size of the notification content is too large.\" }") }
+
+    match handle {
+        Ok(_) => {},
+        Err(kind) => {
+            println!("Could not send notification for duplicates {:?}", kind);
+        }
+    }
 }
 
 fn dupdb_debug_file_path_print(path: String, duplicate_database: &DuplicateDatabase) {
