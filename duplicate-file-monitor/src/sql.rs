@@ -1,11 +1,11 @@
 use std::fs;
 use rusqlite::{Connection, Result};
-use std::path::{self, PathBuf, Path };
+use std::path::{self, PathBuf };
 
-pub const DATABASE_FILE: &str = "dupdb-test.db";
+const DATABASE_FILE: &str = "helloworld.db";
 
 pub fn connect_to_sqlite() -> Result<Connection, rusqlite::Error> {
-    Connection::open(Path::new(".").join(DATABASE_FILE))
+    Connection::open(DATABASE_FILE)
 }
 
 const SQL_CREATE_TABLE: &str = "
