@@ -1,3 +1,4 @@
 .dupdb
 test/*
 !test/.gitkeep
+*sqlite.db
