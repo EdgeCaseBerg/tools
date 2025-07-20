@@ -113,7 +113,7 @@ pub fn dupdb_watch_forever(watch_folder_path: &Path, duplicate_database: &mut Du
     for result in rx {
         match result {
             Ok(debounced_events) => {
-                let paths: Vec<PathBuf> = debounced_events.into_iter().filter_map(|event| {
+                let mut paths: Vec<PathBuf> = debounced_events.into_iter().filter_map(|event| {
                     match event.kind {
                         EventKind::Remove(_) => Some(event.paths.clone()),
                         EventKind::Create(_) => Some(event.paths.clone()),
@@ -123,6 +123,8 @@ pub fn dupdb_watch_forever(watch_folder_path: &Path, duplicate_database: &mut Du
                         EventKind::Other => None,
                     }
                 }).flatten().collect();
+                paths.sort();
+                paths.dedup();
                 dupdb_update_hashes_for(paths, duplicate_database);
             },
             Err(error) => eprintln!("Watch error: {:?}", error),
@@ -165,11 +167,13 @@ pub fn dupdb_update_hashes_for(paths: Vec<PathBuf>, duplicate_database: &mut Dup
         }
     };
 
+    duplicates_in_aggregate.sort();
+    duplicates_in_aggregate.dedup();
+
     if db_dirty {
         if !duplicates_in_aggregate.is_empty() {
             dupdb_notifications_send(duplicates_in_aggregate);
         }
-        dupdb_save_to_file(duplicate_database);
     }
 }
 
