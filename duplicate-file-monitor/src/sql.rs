@@ -1,6 +1,6 @@
 use std::fs;
 use rusqlite::{Connection, Result};
-use std::path::{self, PathBuf, Path };
+use std::path::Path;
 
 pub const DATABASE_FILE: &str = "dupdb-test.db";
 
@@ -166,7 +166,7 @@ mod tests {
         insert_file_hash(&connection, 9876543211, "987654321");
         let hash = 1234567;
         let path = "hellothere";
-        for i in 0..10 {
+        for _ in 0..10 {
             insert_file_hash(&connection, hash, path);
         }
         let there_should_be_10_dupes = dups_by_file(&connection, path);
@@ -184,7 +184,7 @@ mod tests {
         insert_file_hash(&connection, 9876543211, "987654321");
         let hash = 1234567;
         let path = "hellothere";
-        for i in 0..2 {
+        for _ in 0..2 {
             insert_file_hash(&connection, hash, path);
         }
         let there_should_be_2_dupes = dups_by_file(&connection, path);
