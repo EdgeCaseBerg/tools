@@ -74,7 +74,7 @@ impl DuplicateDatabase {
         }
 
         if let Some(files) = self.hash_to_files.get(&hash) {
-            return files.len() > 1
+            return files.iter().count() > 1
         }
         
         false
