@@ -1,9 +1,15 @@
 use rusqlite::{Connection, Result};
 use std::path::{Path, PathBuf };
 
-pub const DATABASE_FILE: &str = "dupdb-test.db";
+pub const DATABASE_FILE: &str = "dupdb.sqlite.db";
 const NAME_OF_HIDDEN_FOLDER: &str = ".dupdb";
+
+#[cfg(debug_assertions)]
 const DEBUGGING_LOCAL: bool = true;
+
+#[cfg(not(debug_assertions))]
+const DEBUGGING_LOCAL: bool = false;
+
 
 pub fn dupdb_database_path() -> PathBuf {
     if !DEBUGGING_LOCAL {
