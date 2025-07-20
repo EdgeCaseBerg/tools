@@ -116,40 +116,6 @@ pub fn reset_all_data(sqlite_connection: &Connection) {
 	initialize(sqlite_connection);
 }
 
-
-pub fn add_hash_to_db_test(conn: &Connection, file_path: PathBuf) {
-    let bytes = fs::read(&file_path).expect("could not read path");
-    let hash = seahash::hash(&bytes);
-    let absolute_path = path::absolute(file_path)
-        .expect("Unable to get absolute path for file to hash").to_str()
-        .expect("Unexpected file name containining non utf 8 characters found").to_string();
-
-    let success = insert_file_hash(conn, hash, &absolute_path);
-    println!("success: {}", success);
-
-    let mut statement = conn.prepare_cached("SELECT hash, file_path FROM dupdb_filehashes").expect("could not prepare select from file");
-    let row_iter = statement.query_map([], |row| {
-        Ok((
-            row.get::<usize, String>(0).expect("could not retrieve column 0 for select row"), 
-            row.get::<usize, String>(1).expect("could not retrieve column 1 for select row")
-        ))
-    }).expect("failed to query dupdb_filehashes table");
-    for row in row_iter {
-        println!("{:?}", row);
-    }
-
-    let count = count_of_same_hash(conn, hash);
-    println!("Rows inserted so far {:?}", count);
-
-    let dups = dups_by_file(conn, &absolute_path);
-    println!("dups {:?}", dups);
-
-    let how_many_removed = delete_all_matching(conn, hash, &absolute_path);
-    println!("removed {:?}", how_many_removed);
-
-    reset_all_data(conn);
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
