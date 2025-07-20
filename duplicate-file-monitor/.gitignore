@@ -1,4 +1,6 @@
 .dupdb
 test/*
 !test/.gitkeep
+!test/nodupes
+!test/dupes
 *sqlite.db
