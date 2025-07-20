@@ -1,11 +1,21 @@
-use std::fs;
 use rusqlite::{Connection, Result};
-use std::path::Path;
+use std::path::{Path, PathBuf };
 
 pub const DATABASE_FILE: &str = "dupdb-test.db";
+const NAME_OF_HIDDEN_FOLDER: &str = ".dupdb";
+const DEBUGGING_LOCAL: bool = true;
+
+pub fn dupdb_database_path() -> PathBuf {
+    if !DEBUGGING_LOCAL {
+        Path::new(env!("HOME")).join(NAME_OF_HIDDEN_FOLDER).join(DATABASE_FILE)
+    } else {
+        Path::new(".").join(NAME_OF_HIDDEN_FOLDER).join(DATABASE_FILE)
+    }
+}
+
 
 pub fn connect_to_sqlite() -> Result<Connection, rusqlite::Error> {
-    Connection::open(Path::new(".").join(DATABASE_FILE))
+    Connection::open(dupdb_database_path())
 }
 
 const SQL_CREATE_TABLE: &str = "
@@ -117,8 +127,9 @@ pub fn reset_all_data(sqlite_connection: &Connection) {
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use super::*;
+    use std::fs;
  
     static mut TEST_DB_NO: u32 = 0;
 

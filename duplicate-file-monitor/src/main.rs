@@ -1,4 +1,3 @@
-use std::env;
 use std::path::Path;
 
 mod sql;
@@ -18,7 +17,6 @@ fn main() {
 
     if needs_reset {
         dupdb_reset_database_from_existing_files(folder_to_watch.to_path_buf(), &mut database);
-        dupdb_save_to_file(&database);
         println!("Initial database saved to {:?}", folder_to_watch);
     }        
 

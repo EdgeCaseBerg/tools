@@ -13,10 +13,7 @@ use notify_rust::Notification;
 use nav_update::RecursiveDirIterator;
 use rusqlite::Connection;
 
-const NAME_OF_HIDDEN_FOLDER: &str = ".dupdb";
-const NAME_OF_HASH_FILE: &str = "index.dat";
 const APPNAME: &str = "Dup DB";
-const DEBUGGING_LOCAL: bool = true;
 
 use crate::sql;
 
@@ -50,7 +47,7 @@ impl DuplicateDatabase {
 
     pub fn debug_key(&self, full_file_path: String) {
         let references = sql::dups_by_file(&self.conn, &full_file_path);
-        if references.len() == 0 {
+        if references.is_empty() {
             println!("Path {:?} not in files_to_hash list", full_file_path);
             return;
         }
@@ -63,13 +60,13 @@ impl DuplicateDatabase {
 
 /// Returns true if new index was created, false otherwise
 pub fn dupdb_initialize_hidden_folder() -> bool {
-    let database_exists_already =dupdb_database_path().exists();
+    let database_exists_already = sql::dupdb_database_path().exists();
     if database_exists_already {
         return false;
     }
     let connection = sql::connect_to_sqlite().expect("Could not open connection to database.");
     sql::initialize(&connection);
-    return true;
+    true
 }
 
 
@@ -83,18 +80,6 @@ pub fn dupdb_reset_database_from_existing_files(path: PathBuf, duplicate_databas
         .map(|file| file.path())
         .collect();
     dupdb_update_hashes_for(paths, duplicate_database);
-}
-
-pub fn dupdb_database_path() -> PathBuf {
-    if !DEBUGGING_LOCAL {
-        Path::new(env!("HOME")).join(NAME_OF_HIDDEN_FOLDER).join(sql::DATABASE_FILE)
-    } else {
-        Path::new(".").join(NAME_OF_HIDDEN_FOLDER).join(sql::DATABASE_FILE)
-    }
-}
-
-pub fn dupdb_save_to_file(_duplicate_database: &DuplicateDatabase) {
-
 }
 
 pub fn dupdb_database_load_to_memory() -> DuplicateDatabase {
@@ -170,10 +155,8 @@ pub fn dupdb_update_hashes_for(paths: Vec<PathBuf>, duplicate_database: &mut Dup
     duplicates_in_aggregate.sort();
     duplicates_in_aggregate.dedup();
 
-    if db_dirty {
-        if !duplicates_in_aggregate.is_empty() {
-            dupdb_notifications_send(duplicates_in_aggregate);
-        }
+    if db_dirty && !duplicates_in_aggregate.is_empty() {
+        dupdb_notifications_send(duplicates_in_aggregate);
     }
 }
 
@@ -221,5 +204,112 @@ pub fn dupdb_debug_file_path_print(path: String, duplicate_database: &DuplicateD
 
 #[cfg(test)]
 mod test {
-    
+    // TODO: Should probably put this into a test util or something I guess.
+    use super::*;
+    static mut TEST_DB_NO: u32 = 0;
+    use rusqlite::Connection;
+    use std::fs;
+
+    fn get_test_dupdb() -> DuplicateDatabase {
+        let connection;
+
+        unsafe {
+            TEST_DB_NO += 1;
+            let filename = format!("test_{TEST_DB_NO}.sqlite.db");
+            let _ = fs::remove_file(&filename);
+            connection = Connection::open(filename).expect("Cannot open database for test");
+        };
+        crate::sql::initialize(&connection);
+        DuplicateDatabase {
+            conn: connection
+        }
+    }
+
+    #[test]
+    fn adding_a_dupe_can_be_detected () {
+        let mut dupdb = get_test_dupdb();
+        let hash = 12456;
+        let fake_path = "the_file_path";
+        let db_has_dupe = dupdb.contains_duplicate_for_hash(hash);
+        assert_eq!(db_has_dupe, false);
+
+        dupdb.add(hash, fake_path.to_string());
+
+        let db_has_dupe = dupdb.contains_duplicate_for_hash(hash);
+        assert_eq!(db_has_dupe, false);
+
+        dupdb.add(hash, fake_path.to_string());
+        let db_has_dupe = dupdb.contains_duplicate_for_hash(hash);
+        assert_eq!(db_has_dupe, true);
+    }
+
+    #[test]
+    fn removing_a_file_removes_detected_dupes () {
+        let mut dupdb = get_test_dupdb();
+        let hash = 12456;
+        let fake_path = "the_file_path";        
+
+        // somebody set us up the bomb
+        dupdb.add(hash, fake_path.to_string());
+        dupdb.add(hash, fake_path.to_string());
+        let db_has_dupe = dupdb.contains_duplicate_for_hash(hash);
+        assert_eq!(db_has_dupe, true);
+
+        // Main screen turn on
+        dupdb.remove(fake_path.to_string());
+        let db_has_dupe = dupdb.contains_duplicate_for_hash(hash);
+        assert_eq!(db_has_dupe, false);
+    }
+
+    #[test]
+    fn does_not_detect_dupes_in_dir_if_not_there () {
+        let mut dupdb = get_test_dupdb();
+
+        let path: PathBuf = [".", "test", "nodupes"].iter().collect();
+        let entries = RecursiveDirIterator::new(&path).expect("Could not load path to reindex database");
+        let paths: Vec<PathBuf> = entries
+            .filter(|dir_entry| dir_entry.path().extension().is_some()) // Remove directories, keep files only.
+            .map(|file| file.path())
+            .collect();
+
+        let hashes: Vec<u64> = paths
+            .iter()
+            .map(|path| {
+                let bytes = fs::read(path)
+                    .expect("Test files are not set up correctly");
+                seahash::hash(&bytes)
+            }).collect();
+        
+        dupdb_update_hashes_for(paths, &mut dupdb);
+        for hash in hashes {
+            let db_has_dupe = dupdb.contains_duplicate_for_hash(hash);
+            assert_eq!(db_has_dupe, false);
+        }
+    }
+
+    #[test]
+    fn does_detect_dupes_in_dir_if_not_there () {
+        let mut dupdb = get_test_dupdb();
+
+        let path: PathBuf = [".", "test", "dupes"].iter().collect();
+        let entries = RecursiveDirIterator::new(&path).expect("Could not load path to reindex database");
+        let paths: Vec<PathBuf> = entries
+            .filter(|dir_entry| dir_entry.path().extension().is_some()) // Remove directories, keep files only.
+            .map(|file| file.path())
+            .collect();
+
+        let hashes: Vec<u64> = paths
+            .iter()
+            .map(|path| {
+                let bytes = fs::read(path)
+                    .expect("Test files are not set up correctly");
+                seahash::hash(&bytes)
+            }).collect();
+        
+        dupdb_update_hashes_for(paths, &mut dupdb);
+        for hash in hashes {
+            let db_has_dupe = dupdb.contains_duplicate_for_hash(hash);
+            assert_eq!(db_has_dupe, true);
+        }
+    }
 }
