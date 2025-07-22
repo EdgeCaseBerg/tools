@@ -2,6 +2,7 @@ pub use std::env;
 use std::path::{self, Path, PathBuf };
 use std::fs::{ self };
 use std::time::Duration;
+use std::time::Instant;
 
 use notify::{self, RecursiveMode, EventKind};
 use notify_debouncer_full::new_debouncer;
@@ -98,18 +99,35 @@ pub fn dupdb_watch_forever(watch_folder_path: &Path, duplicate_database: &mut Du
     for result in rx {
         match result {
             Ok(debounced_events) => {
-                let mut paths: Vec<PathBuf> = debounced_events.into_iter().filter_map(|event| {
-                    match event.kind {
+                /* 
+                let right_now = Instant::now();
+                let mut paths_and_seconds: Vec<(PathBuf, u64)> = debounced_events.into_iter().filter_map(|event| {
+                    let timestamp = event.time;
+                    let maybe_paths: Option<Vec<PathBuf>> = match event.kind {
                         EventKind::Remove(_) => Some(event.paths.clone()),
                         EventKind::Create(_) => Some(event.paths.clone()),
-                        EventKind::Modify(_) => Some(event.paths.clone()),
+                        EventKind::Modify(_) => Some(event.paths.clone()), // windows on cut does create+remove, modify gets sent way too much
                         EventKind::Any => Some(event.paths.clone()),
                         EventKind::Access(_) => None,
                         EventKind::Other => None,
+                    };
+
+                    if maybe_paths.is_none() {
+                        return None;
                     }
+
+                    let paths = maybe_paths.unwrap();
+
+                    // No time travel please.
+                    assert!(timestamp < right_now);
+                    let rounded_seconds = right_now.saturating_duration_since(timestamp).as_secs();
+
+                    Some(paths.into_iter().map(|p| (p, rounded_seconds)).collect::<Vec<(PathBuf, u64)>>())
                 }).flatten().collect();
-                paths.sort();
-                paths.dedup();
+                paths_and_seconds.sort_by_key(|(p, _)| p.clone());
+                // Now filter out any events for the same path that are too close to each otehr
+                paths_and_seconds.dedup();
+                let paths: Vec<PathBuf> = paths_and_seconds.into_iter().map(|(p, _)| p).collect();
                 dupdb_update_hashes_for(paths, duplicate_database);
             },
             Err(error) => eprintln!("Watch error: {:?}", error),
