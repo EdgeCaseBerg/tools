@@ -55,7 +55,7 @@ pub fn insert_file_hash(conn: &Connection, hash: u64, absolute_path: &str) -> bo
 }
 
 const SQL_SELECT_COUNT_FOR_HASH: &str = "
-SELECT COUNT(*) FROM dupdb_filehashes WHERE hash = ?1
+SELECT COUNT(distinct file_path) FROM dupdb_filehashes WHERE hash = ?1
 ";
 
 pub fn count_of_same_hash(conn: &Connection, hash: u64) -> u32 {
@@ -173,7 +173,7 @@ mod test {
         assert_eq!(begin_instrumentality, hall_of_goff);
         insert_file_hash(&connection, hash, path);
         let rejoicing_of_the_masses = count_of_same_hash(&connection, hash);
-        assert_eq!(rejoicing_of_the_masses, 2);
+        assert_eq!(rejoicing_of_the_masses, 1);
     }
 
     #[test]

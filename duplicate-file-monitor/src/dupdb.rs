@@ -256,6 +256,7 @@ mod test {
         let db_has_dupe = dupdb.contains_duplicate_for_hash(hash);
         assert_eq!(db_has_dupe, false);
 
+        let fake_path = "the_dup_file_path";
         dupdb.add(hash, fake_path.to_string());
         let db_has_dupe = dupdb.contains_duplicate_for_hash(hash);
         assert_eq!(db_has_dupe, true);
@@ -265,16 +266,17 @@ mod test {
     fn removing_a_file_removes_detected_dupes () {
         let mut dupdb = get_test_dupdb();
         let hash = 12456;
-        let fake_path = "the_file_path";        
+        let fake_path = "the_file_path";
+        let dup_path = "the_dup_path";
 
         // somebody set us up the bomb
         dupdb.add(hash, fake_path.to_string());
-        dupdb.add(hash, fake_path.to_string());
+        dupdb.add(hash, dup_path.to_string());
         let db_has_dupe = dupdb.contains_duplicate_for_hash(hash);
         assert_eq!(db_has_dupe, true);
 
         // Main screen turn on
-        dupdb.remove(fake_path.to_string());
+        dupdb.remove(dup_path.to_string());
         let db_has_dupe = dupdb.contains_duplicate_for_hash(hash);
         assert_eq!(db_has_dupe, false);
     }
