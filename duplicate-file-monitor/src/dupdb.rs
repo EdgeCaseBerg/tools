@@ -99,7 +99,6 @@ pub fn dupdb_watch_forever(watch_folder_path: &Path, duplicate_database: &mut Du
     for result in rx {
         match result {
             Ok(debounced_events) => {
-                /* 
                 let right_now = Instant::now();
                 let mut paths_and_seconds: Vec<(PathBuf, u64)> = debounced_events.into_iter().filter_map(|event| {
                     let timestamp = event.time;
