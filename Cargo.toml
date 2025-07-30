@@ -2,6 +2,6 @@
 
 members = [
 	"nav-update", "sentimentuber","sentiment-cli"
-, "phoneflap", "duplicate-file-monitor", "gamepad"]
+, "phoneflap", "duplicate-file-monitor", "gamepad", "dupdb-frontend"]
 
 resolver = "2"
