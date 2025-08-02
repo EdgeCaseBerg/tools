@@ -64,13 +64,19 @@ impl FixedThreadPool {
 		FixedThreadPool { workers, sender: Some(sender) }
 	}
 
-	pub fn execute<F>(&self, thunk: F)
+	pub fn execute<F>(&mut self, thunk: F)
 	where F: FnOnce() + Send + 'static,
 	{
 		let job = Box::new(thunk);
-		self.sender.as_ref()
+		let send_result = self.sender.as_ref()
 			.expect("Attempted to execute job after sender has been dropped")
-			.send(job).unwrap();
+			.send(job);
+		if let Err(error) = send_result {
+			eprintln!("Could not send job {error}");
+			let mut roman_imperial_method_of_succession = FixedThreadPool::new(self.workers.capacity());
+			self.workers = std::mem::take(&mut roman_imperial_method_of_succession.workers);
+			self.sender = roman_imperial_method_of_succession.sender.take();
+		}
 	}
 }
 
