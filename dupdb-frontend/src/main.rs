@@ -15,8 +15,12 @@ fn main() {
     };
 
     let shutdown_flag = Arc::new(Mutex::new(false));
+    let reset_pool_flag = Arc::new(Mutex::new(false));
     let mut fixed_thread_pool = FixedThreadPool::new(pool_size);
     for event in listener.incoming() {
+        if fixed_thread_pool.needs_reset() {
+            fixed_thread_pool = FixedThreadPool::new(pool_size);
+        }
         match event {
             Ok(tcp_stream) => {
                 let flag = Arc::clone(&shutdown_flag);
