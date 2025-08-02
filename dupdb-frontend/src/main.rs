@@ -29,20 +29,11 @@ fn main() {
                         let mut flag = match flag.lock() {
                             Ok(guard) => guard,
                             Err(poisoned) => {
-                                println!
-                                ("clearing the poison inside job");
                                 flag.clear_poison();
                                 poisoned.into_inner()
                             },
                         };
                         *flag = true;
-                    } else {
-                        let _flag = flag.lock().unwrap_or_else(|mut e| {
-                            **e.get_mut() = false;
-                            flag.clear_poison();
-                            e.into_inner()
-                        });
-                        panic!("POISON THE LOCK MUA HA HA HA HA");
                     }
                 });
             },
@@ -51,7 +42,6 @@ fn main() {
         let shutdown_flag = match shutdown_flag.lock() {
             Ok(guard) => guard,
             Err(poisoned) => {
-                println!("clearin the poisin in the main event loop");
                 shutdown_flag.clear_poison();
                 poisoned.into_inner()
             },
