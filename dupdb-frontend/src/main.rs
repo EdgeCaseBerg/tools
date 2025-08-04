@@ -6,6 +6,7 @@ use std::io::{BufReader, prelude::*};
 use std::sync::{Arc, Mutex};
 use std::fs;
 use form_urlencoded::parse;
+use urlencoding::decode;
 
 use duplicate_file_monitor::rusqlite::{Connection, OpenFlags};
 
@@ -96,12 +97,9 @@ fn get_http_from(tcp_stream: &TcpStream) -> (Vec<String>, Option<Vec<u8>>) {
         let mut utf8_line = String::new();
         match buf_reader.read_line(&mut utf8_line) {
             Ok(0) => {
-                println!("0");
                 return (headers, None);
             },
-            Ok(bytes_read) => {
-                println!("utf8 read {bytes_read} bytes");
-                println!("{:?}", utf8_line);
+            Ok(_) => {
                 if utf8_line.is_empty() || utf8_line == "\r\n" {
                     break;
                 }
@@ -168,21 +166,45 @@ fn handle_connection(tcp_stream: TcpStream, readonly_connection: Connection) -> 
             }
 
             let _ = fs::remove_file(&path_to_remove);
-            send_200(&format!("File at {path_to_remove} has been removed"), tcp_stream);
+            send_303_home(tcp_stream);
         }
         ("GET", "/shutdown") => {
             send_200("Shutting down...", tcp_stream);
             return ProgramSignal::StopProgram
         },
+        ("GET", "/") => {
+            match fs::read_to_string("index.html") {
+                Ok(bytes) => send_200(&bytes, tcp_stream),
+                Err(error) => send_400(&format!("{error}"), tcp_stream),
+            };
+        },
         ("GET", whatever) => {
             let file_reference = &whatever[1..];
+            let file_reference = match decode(file_reference) {
+                Ok(cow) => cow.into_owned(),
+                Err(error) => {
+                    eprintln!("Can't read file reference properly: {error}");
+                    String::new()
+                }
+            };
             if !fs::exists(&file_reference).unwrap_or(false) {
                 send_400("No file there m8", tcp_stream);
             } else {
-                match fs::read_to_string(file_reference) {
-                    Ok(bytes) => send_200(&bytes, tcp_stream),
-                    Err(error) => send_400(&format!("{error}"), tcp_stream),
-                };
+                if file_reference.ends_with(".html") {
+                    match fs::read_to_string(file_reference) {
+                        Ok(content) => {
+                            send_200(&content, tcp_stream)
+                        },
+                        Err(error) => send_400(&format!("{error}"), tcp_stream),
+                    };    
+                } else {
+                    match fs::read(file_reference) {
+                        Ok(bytes) => {
+                            send_200_bytes(&bytes, tcp_stream)
+                        },
+                        Err(error) => send_400(&format!("{error}"), tcp_stream),
+                    };
+                }
             }
         }
         (method, uri) => send_400(&format!("Invalid request {method} {uri}"), tcp_stream),
@@ -230,12 +252,39 @@ fn get_dups(conn: &Connection) -> Vec<(String, String)> {
     dups
 }
 
+fn send_200_bytes(content: &Vec<u8>, mut tcp_stream: TcpStream) {
+    let status = 200;
+    let status_line = format!("HTTP/1.1 {status} OK");
+    let length = content.len();
+    let headers = format!("Content-Length: {length}\r\nContent-type: application/octet-stream");
+    let response = format!("{status_line}\r\n{headers}\r\n\r\n");
+    match tcp_stream.write_all(response.as_bytes()) {
+        Ok(_) => {
+            let _ = tcp_stream.write_all(content);
+        },
+        Err(error) => {
+            eprintln!("Failed to write response to output {:?}", error);
+        }
+    }
+}
+
 fn send_200(content: &str, mut tcp_stream: TcpStream) {
     let status = 200;
     let status_line = format!("HTTP/1.1 {status} OK");
     let length = content.len();
     let headers = format!("Content-Length: {length}");
     let response = format!("{status_line}\r\n{headers}\r\n\r\n{content}");
+    match tcp_stream.write_all(response.as_bytes()) {
+        Ok(_) => return,
+        Err(error) => eprintln!("Failed to write response to output {:?}", error)
+    }
+}
+
+fn send_303_home(mut tcp_stream: TcpStream) {
+    let status = 303;
+    let status_line = format!("HTTP/1.1 {status} SEE OTHER");
+    let headers = format!("Location: /");
+    let response = format!("{status_line}\r\n{headers}\r\n\r\n");
     match tcp_stream.write_all(response.as_bytes()) {
         Ok(_) => return,
         Err(error) => eprintln!("Failed to write response to output {:?}", error)
