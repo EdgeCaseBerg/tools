@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Dup DB</title>
+	<style>
+		main {
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: center;
+		}
+		main div {
+			padding: 10px;
+		}
+		figure {
+			min-width: 400px; 
+			min-height: 400px;
+			max-width: 400px; 
+			max-height: 400px;
+			margin: 0;
+			display: flex;
+			justify-content: space-around;
+		}
+		figure img {
+			min-height: 400px;
+			max-width: 400px; 
+			max-height: 400px;
+		}
+	</style>
+</head>
+<body>
+	<header>
+		<h1>Duplicates on System</h1>
+	</header>
+	<main>
+		loading...
+	</main>
+	<template id="duplicate-record">
+		<div>
+			<svg width="400" height="400">
+				<rect x="0" y="0" width="400" height="400" stroke="red" fill="#eeeeee" stroke-width="5" />
+				<line x1="20" x2="380" y1="20" y2="380" stroke="red" stroke-width="5"/>
+				<line x1="20" x2="380" y1="380" y2="20" stroke="red" stroke-width="5"/>
+			</svg>
+			<figure>
+				<img onerror="removeimage(this)" onload="onloadimage(this)">
+			</figure>
+			<p>
+				Filename here
+			</p>
+			<form method="POST" action="/remove" target="_blank">
+				<input type="hidden" name="path">
+				<button>Remove this File</button>
+			</form>
+		</div>
+	</template>
+</body>
+<script type="application/javascript">
+	const main = document.getElementsByTagName("main")[0];
+	const template = document.getElementById("duplicate-record");
+	function newDup(filepath) {
+		const div = template.content.cloneNode(true);
+		div.querySelector("p").textContent = filepath;
+		div.querySelector("input").value = filepath;
+		const img = div.querySelector("img");
+		img.src = `${window.location.origin}/${filepath}`;
+		main.appendChild(div);
+	}
+
+	function removeimage(img) {
+		img.parentNode.remove();
+	}
+
+	function onloadimage(img) {
+		if (img.complete) {
+			img.parentNode.previousElementSibling.remove();
+		}
+	}
+
+	fetch('/duplicates')
+		.then((response) => response.text())
+		.then((text) => {
+			const entrie = text.split("\n\n");
+			const grouped_by_hash = entrie.reduce((accum, lines) => {
+				const [hash, path] = lines.split("\n");
+				if (!accum[hash]) {
+					accum[hash] = [];
+				}
+				accum[hash].push(path);
+				return accum
+			}, {});
+			for (const key in grouped_by_hash) {
+				if (!key) {
+					continue;
+				}
+				const files = grouped_by_hash[key];
+				for (var i = 0; i < files.length; i++) {
+					newDup(files[i]);
+				}
+			}
+		})
+		.then(() => {
+			main.firstChild.remove();
+		})
+</script>
+</html>
