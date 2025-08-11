@@ -95,6 +95,13 @@
 					continue;
 				}
 				const files = grouped_by_hash[key];
+				let skip = false;
+				for (var i = 0; i < files.length; i++) {
+					if (files[i].includes("Captivating")) {
+						skip = true;
+					}
+				}
+				if (skip) continue;
 				for (var i = 0; i < files.length; i++) {
 					newDup(files[i]);
 				}
