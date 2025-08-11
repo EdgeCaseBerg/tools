@@ -1189,8 +1189,8 @@ checksum = "f25c0e292a7ca6d6498557ff1df68f32c99850012b6ea401cf8daf771f22ff53"
 name = "dupdb-frontend"
 version = "0.1.0"
 dependencies = [
- "duplicate-file-monitor",
  "form_urlencoded",
+ "rusqlite",
  "urlencoding",
 ]
 

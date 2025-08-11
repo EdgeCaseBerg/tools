@@ -8,7 +8,7 @@ use std::fs;
 use form_urlencoded::parse;
 use urlencoding::decode;
 
-use duplicate_file_monitor::rusqlite::{Connection, OpenFlags};
+use rusqlite::{Connection, OpenFlags};
 
 
 fn main() {
