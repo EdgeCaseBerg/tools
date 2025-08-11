@@ -20,6 +20,9 @@ fn main() {
     let db_connection = open_db_connection(&sqlite_path);
     drop(db_connection);
 
+    // this can panic
+    let mut fixed_thread_pool = FixedThreadPool::new(pool_size);
+
     // HTTP setup
     let listener = match TcpListener::bind(format!("{host}:{port}")) {
         Ok(listener) => listener,
@@ -29,7 +32,6 @@ fn main() {
 
     // Execution pool and the "job" that runs per request.
     let shutdown_flag = Arc::new(Mutex::new(false));
-    let mut fixed_thread_pool = FixedThreadPool::new(pool_size);
     for event in listener.incoming() {
         if fixed_thread_pool.needs_reset() {
             fixed_thread_pool = FixedThreadPool::new(pool_size);
